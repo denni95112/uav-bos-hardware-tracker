@@ -10,6 +10,8 @@ GPS-Tracker für ein Feuerwehrfahrzeug. Er sendet die Fahrzeugposition an
 Du hast wenig Erfahrung mit Technik? Dann starte mit der
 [Schritt-für-Schritt-Anleitung zum Nachbauen](#nachbau-anleitung-für-einsteiger).
 
+![Assembly](/case/assembly.png?raw=true "Title")
+
 ## Nachbau-Anleitung für Einsteiger
 
 Diese Anleitung setzt keine Programmierkenntnisse voraus. Du brauchst weder löten noch
