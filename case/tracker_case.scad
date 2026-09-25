@@ -24,12 +24,12 @@ rear_overhang = 1.0;  // GPS module past the rear PCB edge
 stop_adjust = 2.5;    // moves the rear board stops towards the USB end (measured on a test print)
 
 /* [Display] */
-disp_x0 = 11.7;       // visible area starts here (from PCB front)
+disp_x0 = 10.7;       // visible area starts here (from PCB front; measured 11.7, corrected after a test print)
 disp_w = 23.2;        // visible area along the board
 disp_h = 12.3;        // visible area across the board
 disp_margin = 0.4;    // window oversize per side
 disp_cy = pcb_w / 2;  // display centred across the board
-frame_x0 = 10;        // display frame starts here
+frame_x0 = 9;         // display frame starts here (shifted with disp_x0)
 frame_w = 32.5;
 frame_h = 16.1;
 frame_t = 3.1;        // GPS module is ~0.7 higher
@@ -49,7 +49,7 @@ usb_h = 3.2;
 usb_clear = 0.5;      // per side
 
 /* [Buttons] */
-btn_x = 3.22;         // both buttons, from PCB front
+btn_x = 2.22;         // both buttons, from PCB front (measured 3.22, corrected after a test print)
 user_btn_y = 6.2;     // USER (PRG, GPIO0), 6.2 from the right edge
 reset_btn_y = pcb_w - 6.2; // RST, 6.2 from the left edge
 button_h = 1.5;       // button cap height above PCB top
@@ -81,7 +81,7 @@ front_supports = true; // small supports under the front PCB corners (check agai
 holddown = true;      // pins in the lid pressing on the rear PCB corners
 holddown_x = pcb_l - 3.7; // pin centre from PCB front (measured on a test print)
 front_hook = true;    // lid hooks into the front wall (USB end); rear is screwed
-hook_w = 6;
+hook_w = 4;
 hook_len = 3.0;       // tab length below the lid underside
 hook_t = 1.2;
 hook_nose = 0.8;      // nose depth towards the wall
@@ -121,9 +121,9 @@ boss_ys = [wall + boss_d / 2 - 0.5, out_w - wall - boss_d / 2 + 0.5];
 
 vent_h = top_clear - lip_h - 0.5;
 
-// hooks sit left and right of the USB opening, whose top edge is too close to the wall top
-hook_off = usb_w / 2 + usb_clear + 1 + hook_w / 2;
-hook_board_ys = [usb_cy - hook_off, usb_cy + hook_off];
+// Hooks sit in the front corners: the USB opening's top edge is too close to the wall top,
+// and the button plunger flanges occupy the space next to it.
+hook_board_ys = [hook_w / 2 + 0.2, pcb_w - hook_w / 2 - 0.2];
 hook_pocket_depth = 1.0;
 hook_pocket_clr = 0.2;
 
@@ -262,18 +262,21 @@ module hook_tab() {
 
 // ---------------------------------------------------------------- button plunger
 // Printed standing on the button end. Drop it into the lid hole before closing the case:
-// the flange sits under the lid, the top sticks out 0.8 mm.
-plunger_gap = 0.3; // free travel before the button is touched
-mark_depth = 0.4;  // engraved marking on top: "x" = Reset, "dot" = USER
+// the flange sits under the lid, the top sticks out plunger_top.
+plunger_gap = 0.3;         // free travel before the button is touched
+plunger_bottom_trim = 1.0; // shortens the part below the lid (measured on a test print)
+plunger_top = 2.8;         // how far the plunger sticks out above the lid
+mark_depth = 0.4;          // engraved marking on top: "x" = Reset, "dot" = USER
 module plunger(mark = "dot") {
   shaft_d = button_hole - 0.5;
-  flange_d = button_hole + 1.6;
-  flange_cone = (flange_d - shaft_d) / 2; // 45 deg underside, printable without support
   flange_flat = 0.6;
-  below = top_clear - button_h - plunger_gap; // button cap to lid underside
+  below = top_clear - button_h - plunger_gap - plunger_bottom_trim; // tip to lid underside
+  // 45 deg underside, printable without support; may run down to the tip on short plungers
+  flange_cone = min((button_hole + 1.6 - shaft_d) / 2, below - flange_flat);
+  flange_d = shaft_d + 2 * flange_cone;
   lower = below - flange_cone - flange_flat;
-  top = below + lid_t + 0.8;
-  assert(lower > 0.5, "top_clear too small for the button plunger");
+  top = below + lid_t + plunger_top;
+  assert(flange_d >= button_hole + 0.8, "plunger flange too small to be retained by the lid");
   difference() {
     union() {
       cylinder(d = shaft_d, h = top);
@@ -313,7 +316,7 @@ else if (part == "assembly") {
   base();
   board_dummy();
   for (p = plungers)
-    color("orange") translate([px + btn_x, py + p[0], pcb_top + button_h + plunger_gap]) plunger(p[1]);
+    color("orange") translate([px + btn_x, py + p[0], pcb_top + button_h + plunger_gap + plunger_bottom_trim]) plunger(p[1]);
   color("red", 0.6) translate([0, out_w, base_h + lid_t]) mirror([0, 0, 1]) mirror([0, 1, 0]) lid();
 } else {
   base();
