@@ -32,6 +32,7 @@ constexpr uint16_t C_INFO = 0x04FF;   // blue
 TrackerTft tft(&SPI, PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 GFXcanvas16 canvas(W, H);
 bool backlight = true;
+const char *modeBadge = nullptr;
 
 void push() { tft.drawRGBBitmap(0, 0, canvas.getBuffer(), W, H); }
 
@@ -41,6 +42,13 @@ void header(const char *title, uint16_t color) {
   canvas.setTextColor(C_FG);
   canvas.setCursor(3, 3);
   canvas.print(title);
+  if (modeBadge) {
+    int16_t w = strlen(modeBadge) * 6 + 3;
+    canvas.fillRect(W - w - 1, 2, w, 9, C_FG);
+    canvas.setTextColor(color);
+    canvas.setCursor(W - w + 1, 3);
+    canvas.print(modeBadge);
+  }
 }
 
 void line(int16_t y, uint16_t color, const char *text) {
@@ -65,6 +73,26 @@ void formatAge(char *buf, size_t len, uint32_t ms) {
   if (s < 120) snprintf(buf, len, "%lus", (unsigned long)s);
   else if (s < 7200) snprintf(buf, len, "%lum", (unsigned long)(s / 60));
   else snprintf(buf, len, "%luh", (unsigned long)(s / 3600));
+}
+
+// GNSS status, position and motion on lines 16, 27 and 38.
+void gpsBlock(const GnssFix &fix) {
+  char buf[48];
+  uint16_t gpsColor = fix.valid ? C_OK : (fix.ageMs != UINT32_MAX ? C_WARN : C_ERR);
+  const char *gpsState = fix.valid ? "FIX" : (fix.ageMs != UINT32_MAX ? "ALT" : "SUCHE");
+  snprintf(buf, sizeof(buf), "GPS %-5s Sat %2u HDOP %.1f", gpsState, fix.satellites, fix.hdop);
+  line(16, gpsColor, buf);
+
+  if (fix.ageMs != UINT32_MAX) {
+    snprintf(buf, sizeof(buf), "%.6f  %.6f", fix.latitude, fix.longitude);
+    line(27, C_FG, buf);
+    snprintf(buf, sizeof(buf), "%3.0fkm/h %3.0f\xF7 %4.0fm +-%.0fm", fix.speedMps * 3.6f, fix.heading,
+             fix.altitude, fix.accuracy);
+    line(38, C_FG, buf);
+  } else {
+    line(27, C_DIM, "Warte auf Satelliten...");
+    line(38, C_DIM, "Antenne frei zum Himmel?");
+  }
 }
 
 } // namespace
@@ -94,6 +122,10 @@ void setBacklight(bool on) {
 }
 
 void toggleBacklight() { setBacklight(!backlight); }
+
+bool backlightOn() { return backlight; }
+
+void setMode(TrackerMode mode) { modeBadge = config::modeShort(mode); }
 
 void showBoot(const char *version) {
   canvas.fillScreen(C_BG);
@@ -125,7 +157,7 @@ void showConnecting(const String &ssid, uint32_t elapsedMs) {
   char buf[32];
   snprintf(buf, sizeof(buf), "%c  %lus", spinner[(elapsedMs / 250) % 4], (unsigned long)(elapsedMs / 1000));
   line(52, C_WARN, buf);
-  line(66, C_DIM, "Lang druecken: Config-AP");
+  line(66, C_DIM, "10 s halten: Config-AP");
   push();
 }
 
@@ -154,29 +186,14 @@ void showAp(const String &apSsid, const String &apPass, uint8_t clients) {
   push();
 }
 
-void showRunning(const GnssFix &fix, const UplinkStatus &up, int rssi, const String &ip) {
+void showRunning(const GnssFix &fix, const UplinkStatus &up, int rssi, const String &ip, const MeshStats *mesh,
+                 const GatewayStats *gw) {
   char buf[48];
   canvas.fillScreen(C_BG);
 
-  snprintf(buf, sizeof(buf), "UAV-BOS   WLAN %ddBm", rssi);
+  snprintf(buf, sizeof(buf), "UAV-BOS  WLAN %ddBm", rssi);
   header(buf, C_HEAD);
-
-  // GNSS status
-  uint16_t gpsColor = fix.valid ? C_OK : (fix.ageMs != UINT32_MAX ? C_WARN : C_ERR);
-  const char *gpsState = fix.valid ? "FIX" : (fix.ageMs != UINT32_MAX ? "ALT" : "SUCHE");
-  snprintf(buf, sizeof(buf), "GPS %-5s Sat %2u HDOP %.1f", gpsState, fix.satellites, fix.hdop);
-  line(16, gpsColor, buf);
-
-  if (fix.ageMs != UINT32_MAX) {
-    snprintf(buf, sizeof(buf), "%.6f  %.6f", fix.latitude, fix.longitude);
-    line(27, C_FG, buf);
-    snprintf(buf, sizeof(buf), "%3.0fkm/h %3.0f\xF7 %4.0fm +-%.0fm", fix.speedMps * 3.6f, fix.heading,
-             fix.altitude, fix.accuracy);
-    line(38, C_FG, buf);
-  } else {
-    line(27, C_DIM, "Warte auf Satelliten...");
-    line(38, C_DIM, "Antenne frei zum Himmel?");
-  }
+  gpsBlock(fix);
 
   // Uplink status
   char age[12];
@@ -190,10 +207,66 @@ void showRunning(const GnssFix &fix, const UplinkStatus &up, int rssi, const Str
     line(52, ok ? C_OK : C_ERR, buf);
   }
 
-  snprintf(buf, sizeof(buf), "OK %lu ERR %lu", (unsigned long)up.sentCount, (unsigned long)up.failCount);
-  line(63, C_DIM, buf);
-  line(72, C_DIM, ip.c_str());
+  if (mesh && gw) {
+    snprintf(buf, sizeof(buf), "OK %lu ERR %lu  Mesh %lu/%lu", (unsigned long)up.sentCount,
+             (unsigned long)up.failCount, (unsigned long)gw->forwarded, (unsigned long)gw->failed);
+    line(63, C_DIM, buf);
+    if (mesh->ok) {
+      snprintf(buf, sizeof(buf), "%s  %u Knoten", ip.c_str(), mesh->heardNodes);
+      line(72, C_DIM, buf);
+    } else {
+      line(72, C_ERR, mesh->error);
+    }
+  } else {
+    snprintf(buf, sizeof(buf), "OK %lu ERR %lu", (unsigned long)up.sentCount, (unsigned long)up.failCount);
+    line(63, C_DIM, buf);
+    line(72, C_DIM, ip.c_str());
+  }
 
+  push();
+}
+
+void showLoraOnly(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSec) {
+  char buf[48];
+  canvas.fillScreen(C_BG);
+  header("UAV-BOS  LoRa-Mesh", C_HEAD);
+  gpsBlock(fix);
+
+  if (!mesh.ok) {
+    line(52, C_ERR, mesh.error);
+  } else if (mesh.lastTxMs == 0) {
+    line(52, C_DIM, "LoRa: noch nicht gesendet");
+  } else {
+    char age[12];
+    formatAge(age, sizeof(age), millis() - mesh.lastTxMs);
+    snprintf(buf, sizeof(buf), "LoRa: vor %s (alle %us)", age, intervalSec);
+    line(52, millis() - mesh.lastTxMs < 3000UL * intervalSec ? C_OK : C_WARN, buf);
+  }
+
+  snprintf(buf, sizeof(buf), "%u Kn  Rel %lu  Air %.1f%%", mesh.heardNodes, (unsigned long)mesh.relayCount,
+           mesh.airtimePercent);
+  line(63, mesh.txBlocked ? C_WARN : C_DIM, buf);
+
+  if (mesh.placeholderKey) {
+    line(72, C_WARN, "Standard-Schluessel!");
+  } else {
+    snprintf(buf, sizeof(buf), "Knoten !%08lx", (unsigned long)mesh.nodeNum);
+    line(72, C_DIM, buf);
+  }
+  push();
+}
+
+void showModeSelect(TrackerMode selected, TrackerMode current, uint32_t remainingMs) {
+  char buf[40];
+  canvas.fillScreen(C_BG);
+  header("Betriebsart", C_INFO);
+  centered(22, 2, C_FG, config::modeName(selected));
+  snprintf(buf, sizeof(buf), "aktuell: %s", config::modeName(current));
+  centered(44, 1, C_DIM, buf);
+  if (selected == current) snprintf(buf, sizeof(buf), "keine Aenderung");
+  else snprintf(buf, sizeof(buf), "Wechsel in %lus", (unsigned long)((remainingMs + 999) / 1000));
+  centered(56, 1, selected == current ? C_DIM : C_WARN, buf);
+  centered(68, 1, C_DIM, "Kurz druecken: weiter");
   push();
 }
 

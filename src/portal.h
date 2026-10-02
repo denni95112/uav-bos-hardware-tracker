@@ -17,5 +17,7 @@ bool isApMode();
 bool rebootRequested();   // set after settings were saved or reset
 uint32_t lastActivityMs(); // last HTTP request or AP client connected
 uint8_t apClients();
+// Mode chosen on the web page; returns true once per request. The main loop applies it.
+bool takeModeRequest(TrackerMode &mode);
 
 } // namespace portal

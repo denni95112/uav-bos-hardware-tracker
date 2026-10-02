@@ -10,8 +10,6 @@ GPS-Tracker für ein Feuerwehrfahrzeug. Er sendet die Fahrzeugposition an
 Du hast wenig Erfahrung mit Technik? Dann starte mit der
 [Schritt-für-Schritt-Anleitung zum Nachbauen](#nachbau-anleitung-für-einsteiger).
 
-![Assembly](/case/assembly.png?raw=true "Title")
-
 ## Nachbau-Anleitung für Einsteiger
 
 Diese Anleitung setzt keine Programmierkenntnisse voraus. Du brauchst weder löten noch
@@ -77,6 +75,8 @@ Wenn alles geklappt hat, zeigt das Display das UAV-BOS-Logo und danach den Einri
    - **Request-URL** von UAV BOS, z. B.
      `https://api.beta.uav-bos.de/telemetry/objects/<Fahrzeug-Schlüssel>/<API-Schlüssel>`
    - **Sendeintervall**: 5 Sekunden sind ein guter Wert.
+   - **Betriebsart**: "Nur WLAN" wie bisher, "Gateway" oder "Nur LoRa" für das Funk-Mesh (siehe
+     [LoRa-Mesh / Betriebsarten](#lora-mesh--betriebsarten)). Bei "Nur LoRa" darf die SSID leer bleiben.
    - **AP-Passwort** (empfohlen, mind. 8 Zeichen). Schützt das Einrichtungs-WLAN und die
      Einstellungsseite (Benutzername `admin`).
 4. Auf **"Speichern & Neustart"** tippen.
@@ -116,9 +116,12 @@ Zusammenbau:
 
 ### Bedienung im Alltag
 
-- **Taste PRG kurz drücken**: Display an/aus.
-- **Taste PRG 3 Sekunden halten**: Einrichtungs-WLAN öffnen, z. B. um das WLAN zu ändern.
-  Erneut 3 Sekunden halten, um zurückzuwechseln.
+- **Taste PRG kurz drücken**: Betriebsart wechseln (Nur WLAN → Gateway → Nur LoRa, siehe
+  [LoRa-Mesh / Betriebsarten](#lora-mesh--betriebsarten)). Jeder weitere Druck springt eine Stufe
+  weiter, 3 Sekunden nach dem letzten Druck wird die Auswahl übernommen.
+- **Taste PRG 3 Sekunden halten**: Display an/aus.
+- **Taste PRG 10 Sekunden halten**: Einrichtungs-WLAN öffnen, z. B. um das WLAN zu ändern.
+  Erneut 10 Sekunden halten, um zurückzuwechseln.
 - Findet der Tracker das Fahrzeug-WLAN nicht, öffnet er nach 30 Sekunden automatisch das
   Einrichtungs-WLAN und wechselt zurück, sobald das Fahrzeug-WLAN wieder da ist.
 
@@ -160,11 +163,79 @@ Zusammenbau:
 | Verbinden    | SSID, verstrichene Zeit                                                 |
 | Konfig-AP    | AP-Name, AP-Passwort, `http://192.168.4.1`, verbundene Geräte           |
 | Betrieb      | WLAN-RSSI, GPS-Status/Satelliten/HDOP, Position, Geschwindigkeit, Kurs, Höhe, Genauigkeit, letzte Sendung (Alter + HTTP-Code, grün/rot), Sendezähler, IP |
+| Mode-Auswahl | gewählte und aktuelle Betriebsart, Countdown bis zur Übernahme          |
+| Nur LoRa     | GPS wie oben, letzte LoRa-Sendung, gehörte Tracker, Weiterleitungen, Airtime, Knoten-ID |
+
+Oben rechts im Kopf steht immer die Betriebsart (`WLAN`, `GW`, `LoRa`). Im Gateway-Betrieb zeigt der
+Betriebsbildschirm zusätzlich die weitergeleiteten Mesh-Positionen (OK/Fehler) und die Zahl der gehörten Tracker.
 
 ### Taste (PRG)
 
-- **Kurz drücken**: Display-Hintergrundbeleuchtung an/aus
-- **3 s halten**: Konfig-AP öffnen (im AP-Modus erneut halten, um zurück ins WLAN zu wechseln)
+- **Kurz drücken**: Betriebsart wechseln (Übernahme 3 s nach dem letzten Druck)
+- **3 s halten**: Display-Hintergrundbeleuchtung an/aus
+- **10 s halten**: Konfig-AP öffnen (im AP-Modus erneut halten, um zurück zur Betriebsart zu wechseln)
+
+## LoRa-Mesh / Betriebsarten
+
+Das Board hat einen LoRa-Funkchip (SX1262, 868 MHz). Damit bilden die Tracker ein Funknetz, das mit
+[Meshtastic](https://meshtastic.org/) kompatibel ist. Fahrzeuge ohne Internet schicken ihre Position über
+das Mesh zu einem Tracker, der Internet hat, und der leitet sie an UAV BOS weiter.
+
+| Betriebsart  | WLAN | LoRa | Was passiert                                                                  |
+|--------------|------|------|-------------------------------------------------------------------------------|
+| Nur WLAN     | an   | aus  | Wie bisher: Position per WLAN an UAV BOS                                      |
+| Gateway      | an   | an   | Eigene Position per WLAN. Empfängt Positionen anderer Tracker über LoRa und sendet sie an UAV BOS. Leitet Mesh-Pakete weiter. Ohne WLAN wird die eigene Position über LoRa geschickt |
+| Nur LoRa     | aus  | an   | Eigene Position über LoRa, Pakete anderer Tracker werden weitergeleitet. Braucht nur die Request-URL, kein WLAN |
+
+Jedes Board im Gateway-Betrieb, das Internet hat, kann als Gateway dienen. Es braucht also keinen
+zentralen Empfänger. Die Betriebsart bleibt nach einem Neustart erhalten und lässt sich auch auf der
+Einstellungsseite wählen.
+
+So funktioniert es:
+
+1. Ein Tracker im Betrieb "Nur LoRa" sendet beim Start und danach alle 10 Minuten seine Request-URL
+   verschlüsselt ins Mesh. Gateways speichern sie (auch über einen Neustart hinweg).
+2. Die Position sendet er alle *n* Sekunden (Einstellung "LoRa-Sendeintervall", Standard 30 s, min. 15 s).
+   Nach mehr als 100 m Strecke oder 30° Kursänderung schon früher, im Stand höchstens alle 2 Minuten.
+3. Ein Gateway sendet die Position unverändert als JSON an die URL des Trackers. Kennt es die URL noch
+   nicht, fragt es den Tracker danach.
+4. Positionen, die älter als 60 s sind (laut GPS-Zeit), werden verworfen. Hören mehrere Gateways
+   dasselbe Paket, bekommt UAV BOS dieselbe Position mehrfach. Das ist unkritisch.
+
+Auf der Seite von UAV BOS ist keine Änderung nötig.
+
+### Mesh-Schlüssel (wichtig)
+
+Die Request-URL enthält den API-Schlüssel und wird über Funk übertragen. Sie ist mit einem festen
+Schlüssel verschlüsselt (AES-256), der in die Firmware eingebaut wird. **Jede Organisation muss einen
+eigenen Schlüssel erzeugen**, der Standardschlüssel steht öffentlich in diesem Projekt. Mit dem
+Standardschlüssel zeigt das Display "Standard-Schluessel!".
+
+1. Schlüssel erzeugen: `openssl rand -base64 32`
+   (oder in PowerShell: `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`)
+2. In `platformio.ini` bei `-DMESH_PSK_B64=\"...\"` eintragen.
+3. Alle Tracker der Organisation mit derselben Firmware flashen. Tracker mit anderem Schlüssel oder
+   Kanalnamen (`-DMESH_CHANNEL_NAME`) verstehen sich nicht, leiten die Pakete aber trotzdem weiter.
+
+Den Schlüssel nicht in ein öffentliches Repository hochladen.
+
+### Kompatibilität mit Meshtastic
+
+- Funkparameter wie Meshtastic **EU_868 / LongFast**: 869,525 MHz, 250 kHz, SF11, CR 4/5, Sync-Word 0x2B.
+- Pakete verwenden den Meshtastic-Header und die Kanal-Verschlüsselung (AES-CTR) auf einem privaten Kanal
+  (`UAV-BOS`), die Nutzdaten laufen über den Port `PRIVATE_APP` (256).
+- Normale Meshtastic-Geräte mit LongFast in der EU leiten die Pakete weiter (Rebroadcast-Modus `ALL`,
+  Standard), können sie ohne Schlüssel aber nicht lesen. Umgekehrt leiten die Tracker auch fremde
+  Meshtastic-Pakete weiter. Vorhandene Meshtastic-Knoten der Feuerwehr vergrößern so die Reichweite.
+- Pakete starten mit Hop-Limit 3.
+- Im Band 869,4 bis 869,65 MHz sind 10 % Sendezeit erlaubt. Die Firmware zählt die eigene Sendezeit
+  (inkl. Weiterleitungen) über die letzte Stunde und sendet oberhalb von 10 % nicht mehr. Eine
+  Positionsmeldung dauert bei SF11 etwa 0,4 s.
+
+### Antenne
+
+Für LoRa muss eine 868-MHz-Antenne am LoRa-Anschluss stecken. **Nie ohne Antenne senden**, das kann den
+Funkchip beschädigen. Das Gehäuse hat mit `lora_sma` ein Loch für eine SMA-Einbaubuchse.
 
 ## Flashen
 
@@ -184,13 +255,26 @@ Zusammenbau:
 1. Tracker mit Strom versorgen. Ohne Konfiguration öffnet er den AP `UAV-BOS-Tracker-XXXX`.
 2. Mit dem Smartphone verbinden. Die Einstellungsseite öffnet sich automatisch (sonst `http://192.168.4.1` aufrufen).
 3. Eintragen:
-   - **SSID / Passwort** des Fahrzeug-WLANs ("Suchen" startet einen Scan)
+   - **SSID / Passwort** des Fahrzeug-WLANs ("Suchen" startet einen Scan), bei "Nur LoRa" optional
+   - **Betriebsart** und **LoRa-Sendeintervall**
    - **Request-URL**, z. B. `https://api.beta.uav-bos.de/telemetry/objects/<vehicle-key>/<api-key>`
    - **Sendeintervall** in Sekunden
    - optional **AP-Passwort** (mind. 8 Zeichen). Schützt auch die Webseite, Benutzer `admin`.
 4. "Speichern & Neustart". Der Tracker startet neu, verbindet sich und beginnt zu senden.
 
 Im Betrieb ist dieselbe Status-/Einstellungsseite unter der IP erreichbar, die auf dem Display steht.
+
+Oben auf der Seite ("Steuerung") lassen sich ohne Neustart die Betriebsart umschalten und das Display
+ein- und ausschalten. Der Wechsel zwischen "Nur WLAN" und "Gateway" hält die WLAN-Verbindung. Bei "Nur LoRa"
+geht das WLAN aus, die Seite ist dann nur noch über den Config-AP erreichbar (Taste 10 s halten).
+Ist LoRa aktiv, zeigt der Abschnitt "LoRa-Mesh":
+
+- **Verbundene Tracker**: in den letzten 5 Minuten gehört, getrennt nach direkt und über Weiterleitung.
+  LoRa kennt keine feste Verbindung, "verbunden" heißt deshalb "kürzlich gehört".
+- **Tracker mit Positionsdaten**: haben in der letzten Stunde mindestens eine Position gesendet.
+- eine Liste aller Tracker der letzten Stunde mit Knoten-ID, zuletzt gehört, letzte Position (und Anzahl
+  seit dem Start), Hops und Signalstärke. Es zählen nur Tracker mit demselben Mesh-Schlüssel, fremde
+  Meshtastic-Geräte werden nur weitergeleitet.
 Im Fahrzeug-WLAN wird die gespeicherte URL nur maskiert angezeigt, da sie den API-Schlüssel enthält.
 Setze ein AP-Passwort, wenn sich weitere Geräte das Fahrzeug-WLAN teilen.
 
@@ -223,13 +307,14 @@ Die Standardwerte sind am Fastsaw-Board gemessen. Alle Positionen gelten ab der 
 | `usb_overhang`, `rear_overhang`  | USB-C steht 1,0 mm vorne über, GPS-Modul 1,0 mm hinten                   |
 | `stop_adjust`                    | 2,5: verschiebt die hinteren Anschläge Richtung USB-Ende (aus Testdruck) |
 | `holddown_x`                     | `pcb_l - 3.7`: Position der Niederhalter-Stifte im Deckel ab PCB-Vorderkante (aus Testdruck) |
-| `front_hook`                     | zwei Haken am Deckel (USB-C-Seite) greifen in Taschen der Stirnwand; `hook_w`, `hook_len`, `hook_t`, `hook_nose` für die Maße |
+| `front_hook`                     | zwei 4 mm breite Haken am Deckel (vordere Ecken, USB-C-Seite) greifen in Taschen der Stirnwand; `hook_w`, `hook_len`, `hook_t`, `hook_nose` für die Maße |
 | `top_clear`                      | 4,3: GPS-Modul (3,8, höchstes Bauteil oben) + Luft                       |
 | `bottom_clear`                   | 4,0: Stecker auf der Unterseite am USB-Ende (3,6) + Luft. Etwa 9 bei eingelöteten Stiftleisten |
-| `disp_x0`, `disp_w`, `disp_h`    | sichtbare Displayfläche: beginnt bei 11,7 mm, 23,2 x 12,3 mm, mittig in der Breite |
-| `frame_x0`, `frame_w`, `frame_h` | Displayrahmen: beginnt bei 10 mm, 32,5 x 16,1 mm (Vertiefung für eine klare Abdeckung) |
-| `btn_x`, `user_btn_y`, `reset_btn_y` | Tasten 3,22 mm von vorne; USER 6,2 mm von rechts, Reset 6,2 mm von links |
+| `disp_x0`, `disp_w`, `disp_h`    | sichtbare Displayfläche: beginnt bei 10,7 mm (gemessen 11,7, nach Testdruck korrigiert), 23,2 x 12,3 mm, mittig in der Breite |
+| `frame_x0`, `frame_w`, `frame_h` | Displayrahmen: beginnt bei 9 mm (mit verschoben), 32,5 x 16,1 mm (Vertiefung für eine klare Abdeckung) |
+| `btn_x`, `user_btn_y`, `reset_btn_y` | Tasten 2,22 mm von vorne (gemessen 3,22, nach Testdruck korrigiert); USER 6,2 mm von rechts, Reset 6,2 mm von links |
 | `reset_mode`                     | `"plunger"` (Standard), `"pinhole"` (2 mm, Büroklammer) oder `"none"`   |
+| `plunger_bottom_trim`, `plunger_top` | 1,0 mm kürzer unten, 2,8 mm Überstand über dem Deckel (aus Testdruck) |
 | `usb_w`, `usb_h`, `usb_z`        | 8,8 x 3,2 mm USB-C, Mitte 1,6 mm über der Platinenoberseite              |
 | `gnss_sma`, `lora_sma`           | Löcher für SMA-Einbaubuchsen                                             |
 | `sma_min_in_h`                   | 11 mm Innenhöhe für eine SMA-Mutter. Mit SMA-Loch wird der Raum unter der Platine entsprechend größer |
@@ -267,6 +352,10 @@ Druck in **PETG oder ASA**. PLA wird in einem in der Sonne geparkten Auto weich.
 | Genauigkeitsschätzung (UERE)      | `kUereMeters` in `src/gnss.cpp`                            |
 | Timeouts (WLAN, AP-Leerlauf, Taste) | Anfang von `src/main.cpp`                                |
 | TLS-Zertifikatsprüfung            | `-DUPLINK_VERIFY_TLS` in `platformio.ini` einkommentieren (ISRG Root X1, genutzt von api.beta.uav-bos.de) |
+| Mesh-Schlüssel, Kanalname         | `-DMESH_PSK_B64`, `-DMESH_CHANNEL_NAME` in `platformio.ini`  |
+| LoRa-Funkparameter, Airtime-Limit, Hop-Limit | Anfang von `src/mesh.cpp`                       |
+| LoRa-Nachrichtenformat            | `src/meshproto.cpp`                                        |
+| Weiterleitung, Alterslimit 60 s   | `src/gateway.cpp`                                          |
 
 Ist das Displaybild verschoben, zeigt einen Rauschstreifen oder invertierte Farben, passe die
 `TFT_*`-Werte in `src/pins.h` an. Klone verwenden manchmal ein leicht anderes Panel.

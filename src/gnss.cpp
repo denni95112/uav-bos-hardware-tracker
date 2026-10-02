@@ -82,10 +82,27 @@ static bool gstAccuracy(float &out) {
   return true;
 }
 
+// Days since 1970-01-01 for a proleptic Gregorian date (H. Hinnant's days_from_civil).
+static int32_t daysFromCivil(int32_t y, uint32_t m, uint32_t d) {
+  y -= m <= 2;
+  const int32_t era = (y >= 0 ? y : y - 399) / 400;
+  const uint32_t yoe = (uint32_t)(y - era * 400);
+  const uint32_t doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const uint32_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (int32_t)doe - 719468;
+}
+
+static uint32_t unixTime() {
+  if (!gps.date.isValid() || !gps.time.isValid() || gps.date.year() < 2024) return 0;
+  int32_t days = daysFromCivil(gps.date.year(), gps.date.month(), gps.date.day());
+  return (uint32_t)days * 86400UL + gps.time.hour() * 3600UL + gps.time.minute() * 60UL + gps.time.second();
+}
+
 static GnssFix snapshot() {
   GnssFix f;
   f.satellites = gps.satellites.isValid() ? gps.satellites.value() : 0;
   f.hdop = gps.hdop.isValid() ? gps.hdop.hdop() : 0;
+  f.unixTime = unixTime();
 
   if (!gps.location.isValid()) return f;
 

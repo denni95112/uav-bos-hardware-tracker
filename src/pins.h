@@ -38,3 +38,13 @@
 #define BAT_ADC_MULTIPLIER (4.9f * 1.045f)
 
 #define PIN_LED 18
+
+// SX1262 LoRa (own SPI bus, the TFT uses the default one). DIO2 drives the RF switch, DIO3 the TCXO.
+#define PIN_LORA_SCK 9
+#define PIN_LORA_MISO 11
+#define PIN_LORA_MOSI 10
+#define PIN_LORA_CS 8
+#define PIN_LORA_RST 12
+#define PIN_LORA_DIO1 14
+#define PIN_LORA_BUSY 13
+#define LORA_TCXO_VOLTAGE 1.8f

@@ -19,6 +19,8 @@ namespace uplink {
 
 void begin(const String &url);
 bool send(const GnssFix &fix);
+// POSTs a JSON body to any URL and records the result in `st` (used by the gateway for mesh clients).
+bool post(const String &url, const String &body, UplinkStatus &st);
 String buildJson(const GnssFix &fix);
 const UplinkStatus &status();
 

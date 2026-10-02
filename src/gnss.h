@@ -14,6 +14,7 @@ struct GnssFix {
   uint8_t satellites = 0;
   uint32_t ageMs = UINT32_MAX;
   bool accuracyFromGst = false;
+  uint32_t unixTime = 0; // UTC seconds of the fix, 0 = GNSS time not known yet
 };
 
 namespace gnss {

@@ -73,7 +73,9 @@ String buildJson(const GnssFix &fix) {
   return String(buf);
 }
 
-bool send(const GnssFix &fix) {
+bool send(const GnssFix &fix) { return post(targetUrl, buildJson(fix), st); }
+
+bool post(const String &url, const String &body, UplinkStatus &st) {
   st.lastAttemptMs = millis();
   if (st.lastAttemptMs == 0) st.lastAttemptMs = 1;
 
@@ -85,11 +87,19 @@ bool send(const GnssFix &fix) {
     return false;
   }
 
-  String body = buildJson(fix);
   st.lastPayload = body;
 
-  bool ok = targetUrl.startsWith("https://") ? http.begin(secureClient, targetUrl)
-                                              : http.begin(plainClient, targetUrl);
+  // A kept-alive connection must not be reused for a different server.
+  static String lastOrigin;
+  int pathStart = url.indexOf('/', url.indexOf("://") + 3);
+  String origin = pathStart > 0 ? url.substring(0, pathStart) : url;
+  if (origin != lastOrigin) {
+    secureClient.stop();
+    plainClient.stop();
+    lastOrigin = origin;
+  }
+
+  bool ok = url.startsWith("https://") ? http.begin(secureClient, url) : http.begin(plainClient, url);
   if (!ok) {
     st.lastHttpCode = HTTPC_ERROR_CONNECTION_REFUSED;
     st.lastError = "Ungueltige URL";
