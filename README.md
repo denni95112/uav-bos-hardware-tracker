@@ -218,34 +218,118 @@ Auf der Seite von UAV BOS ist keine Änderung nötig.
 
 ### Mesh-Schlüssel (wichtig)
 
-Die Request-URL enthält den API-Schlüssel und wird über Funk übertragen. Sie ist mit einem festen
-Schlüssel verschlüsselt (AES-256), der beim Übersetzen in die Firmware eingebaut wird. **Jede
-Organisation muss einen eigenen Schlüssel erzeugen.** Ohne Schlüssel nutzt die Firmware einen
-Platzhalter; das Display zeigt dann "Standard-Schluessel!".
+Die Request-URL enthält den API-Schlüssel und wird über Funk übertragen. Sie ist mit einem Schlüssel
+verschlüsselt (AES-256), der auf jedem Tracker gespeichert ist. **Jede Organisation braucht einen eigenen
+Schlüssel, alle ihre Tracker denselben.** Ohne Schlüssel nutzt die Firmware einen Platzhalter; das
+Display zeigt dann "Standard-Schluessel!".
 
-1. Schlüssel erzeugen: `openssl rand -base64 32`
+1. Am ersten Tracker die Einstellungsseite über den Config-AP öffnen und beim Feld **Mesh-Schlüssel**
+   auf "Neu" tippen. Alternativ selbst erzeugen: `openssl rand -base64 32`
    (oder in PowerShell: `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`)
-2. Lokal: die Datei `.env.example` nach `.env` kopieren und `MESH_PSK_B64=...` eintragen.
-   `.env` wird nicht ins Repository übernommen. Alternativ die Umgebungsvariable `MESH_PSK_B64` setzen.
-3. Für automatische Releases: im GitHub-Repository unter **Settings → Secrets and variables → Actions**
-   ein Secret namens `MESH_PSK_B64` mit demselben Schlüssel anlegen.
-4. Alle Tracker der Organisation mit derselben Firmware flashen. Tracker mit anderem Schlüssel oder
-   Kanalnamen (`-DMESH_CHANNEL_NAME`) verstehen sich nicht, leiten die Pakete aber trotzdem weiter.
+2. Den Schlüssel sicher notieren und bei allen anderen Trackern in dasselbe Feld eintragen.
+   Leer lassen = unverändert. Angezeigt wird der gespeicherte Schlüssel nur am Config-AP, nie im
+   Fahrzeug-WLAN.
+3. Tracker mit anderem Schlüssel oder Kanalnamen (`-DMESH_CHANNEL_NAME`) verstehen sich nicht, leiten die
+   Pakete aber trotzdem weiter.
 
-Den Schlüssel nicht ins Repository schreiben.
+Der Schlüssel bleibt bei Firmware-Updates erhalten und wird erst durch "Werkseinstellungen" gelöscht.
+
+**Schlüssel in der Firmware (optional):** Ist beim Bauen `MESH_PSK_B64` gesetzt (Datei `.env`, siehe
+`.env.example`, oder Umgebungsvariable), übernimmt ein Tracker ohne gespeicherten Schlüssel diesen
+einmalig. Das ist praktisch, um viele Geräte selbst zu flashen. Aber: **Ein eingebauter Schlüssel lässt
+sich aus der Firmware-Datei auslesen.** Solche Builds nie veröffentlichen, also auch nicht über GitHub
+Releases oder das Web-Flash-Tool. Den Schlüssel nicht ins Repository schreiben.
+
+Umstieg von älteren Versionen, bei denen der Schlüssel nur in der Firmware steckte: Ein Tracker mit
+dieser Firmware speichert den eingebauten Schlüssel beim ersten Start. Danach das GitHub-Secret
+`MESH_PSK_B64` löschen, damit weitere Releases keinen Schlüssel mehr enthalten. Da der alte Schlüssel
+in veröffentlichten Releases steckt, sollte er anschließend auf allen Trackern durch einen neuen ersetzt
+werden.
 
 ### Kompatibilität mit Meshtastic
 
-- Funkparameter wie Meshtastic **EU_868 / LongFast**: 869,525 MHz, 250 kHz, SF11, CR 4/5, Sync-Word 0x2B.
+- Standard-Funkparameter wie Meshtastic **EU_868 / LongFast**: 869,525 MHz, 250 kHz, SF11, CR 4/5,
+  Sync-Word 0x2B, Präambel 16.
 - Pakete verwenden den Meshtastic-Header und die Kanal-Verschlüsselung (AES-CTR) auf einem privaten Kanal
   (`UAV-BOS`), die Nutzdaten laufen über den Port `PRIVATE_APP` (256).
-- Normale Meshtastic-Geräte mit LongFast in der EU leiten die Pakete weiter (Rebroadcast-Modus `ALL`,
+- Normale Meshtastic-Geräte mit demselben Modemprofil leiten die Pakete weiter (Rebroadcast-Modus `ALL`,
   Standard), können sie ohne Schlüssel aber nicht lesen. Umgekehrt leiten die Tracker auch fremde
   Meshtastic-Pakete weiter. Vorhandene Meshtastic-Knoten der Feuerwehr vergrößern so die Reichweite.
-- Pakete starten mit Hop-Limit 3.
+  Für Meshtastic-Betreiber: gut platzierte Knoten mit Rolle `ROUTER` (oder `ROUTER_LATE`) und
+  Rebroadcast-Modus `ALL` helfen am meisten. `LOCAL_ONLY`, `KNOWN_ONLY` und `NONE` leiten die Tracker-Pakete nicht weiter.
 - Im Band 869,4 bis 869,65 MHz sind 10 % Sendezeit erlaubt. Die Firmware zählt die eigene Sendezeit
-  (inkl. Weiterleitungen) über die letzte Stunde und sendet oberhalb von 10 % nicht mehr. Eine
-  Positionsmeldung dauert bei SF11 etwa 0,4 s.
+  (inkl. Weiterleitungen) über die letzte Stunde und sendet oberhalb von 10 % nicht mehr.
+- Wie Meshtastic sendet ein Tracker nicht, während er gerade ein Paket empfängt, und prüft vor dem
+  Senden per CAD, ob der Kanal frei ist. Weitergeleitete Pakete tragen kein `next_hop`, wie bei einem
+  Meshtastic-Knoten ohne bekannte Route.
+
+#### LoRa-Einstellungen (Einstellungsseite, Abschnitt "LoRa / Meshtastic")
+
+Alle Werte gelten nach "Speichern & Neustart". Alle Tracker und die Meshtastic-Knoten, die weiterleiten
+sollen, brauchen dasselbe Modemprofil und denselben Frequenz-Slot. Prüft vorher, welches Profil das
+Meshtastic-Netz vor Ort verwendet. Ein anderes Profil hört die Tracker gar nicht.
+
+| Einstellung | Standard | Bedeutung |
+|-------------|----------|-----------|
+| Modemprofil | LongFast | Meshtastic-Profile, die ins Band 869,4–869,65 MHz passen: ShortFast, ShortSlow, MediumFast, MediumSlow, LongFast, LongModerate, LongSlow |
+| Frequenz-Slot | Meshtastic-Standard | Nur bei 125-kHz-Profilen (LongModerate, LongSlow): Slot 1 = 869,4625 MHz, Slot 2 = 869,5875 MHz. "Standard" rechnet den Slot wie Meshtastic aus dem Profilnamen. Hat das Meshtastic-Netz einen eigenen Kanalnamen, den Slot von Hand setzen |
+| Hop-Limit | 3 | Wie oft eigene Pakete höchstens weitergeleitet werden (1–7). Mehr Hops reichen weiter, belasten aber das ganze Netz |
+| Sendeleistung | 22 dBm | 2–22 dBm |
+| Weiterleitung | Alle Pakete | "Alle" wie Meshtastic `ALL`; "Nur UAV-BOS-Tracker" leitet nur Pakete vom eigenen Kanal weiter; "Keine" leitet nichts weiter |
+| Sendezeit für fremde Pakete | 6 % | Liegt die gesamte Sendezeit (letzte Stunde) über diesem Wert, werden fremde Meshtastic-Pakete nicht mehr weitergeleitet. Der Rest bis 10 % bleibt für eigene Positionen und Tracker-Pakete |
+| Mesh-Schlüssel | – | Siehe [Mesh-Schlüssel](#mesh-schlüssel-wichtig) |
+
+Pakete vom eigenen Tracker-Kanal haben beim Weiterleiten Vorrang. Sind alle Weiterleitungsplätze belegt,
+verdrängen sie ein wartendes fremdes Paket.
+
+Sendezeit einer Positionsmeldung (44 Byte) je Profil, ungefähr:
+
+| Profil | Sendezeit | Profil | Sendezeit |
+|--------|-----------|--------|-----------|
+| ShortFast | 0,05 s | LongFast | 0,56 s |
+| ShortSlow | 0,09 s | LongModerate | 1,8 s |
+| MediumFast | 0,16 s | LongSlow | 3,3 s |
+| MediumSlow | 0,3 s | | |
+
+Bei LongSlow reichen 10 % Sendezeit nicht für eine Position alle 30 s. Dann das LoRa-Sendeintervall erhöhen.
+
+#### Sende-Timing
+
+Im Mesh leitet jeder Tracker die Pakete der anderen weiter. Die Sendezeit pro Gerät wächst deshalb mit
+der Zahl der Tracker. Faustregel für LongFast: LoRa-Sendeintervall in Sekunden mindestens 5,6 × Anzahl
+der Tracker, mit Reserve etwa 10 × Anzahl (10 Tracker: 60–100 s).
+
+Die Firmware entlastet das Netz selbst:
+
+- **Versatz**: Jede Position kommt mit zufälligen ±10 % auf das Intervall. Tracker, die gleichzeitig
+  gestartet wurden, senden so nicht dauerhaft im Gleichtakt.
+- **Drosselung**: Liegt die Sendezeit der letzten Stunde für Tracker-Pakete (eigene und weitergeleitete)
+  über 5 %, verdoppelt der Tracker sein LoRa-Intervall, über 8 % vervierfacht er es. Weitergeleitete
+  fremde Meshtastic-Pakete zählen dabei nicht mit, sie haben ihr eigenes Budget. Die Webseite zeigt dann
+  "Intervall x2" bzw. "x4", das Display das verlängerte Intervall.
+- **Gateways mit Internet** leiten empfangene Positionen nicht weiter, sondern schicken sie direkt an
+  UAV BOS. Das gilt nur, solange die letzte Übertragung an UAV BOS in den vergangenen 2 Minuten
+  geklappt hat, und nur für Tracker, deren Request-URL das Gateway kennt und an deren URL die letzte
+  Übertragung erfolgreich war. Sonst leitet das Gateway die Position weiter, damit ein anderes Gateway
+  sie zustellen kann. Request-URLs leiten Gateways immer weiter, weil andere Gateways sie auch brauchen.
+- **Gateway ohne Internet**: Ist das WLAN verbunden, schlägt aber die Übertragung fehl (z. B. LTE-Router
+  ohne Netz), schickt das Gateway seine eigene Position wie ein Tracker im Betrieb "Nur LoRa" übers Mesh.
+
+#### Diagnose
+
+Der Abschnitt "LoRa-Mesh" auf der Einstellungsseite zeigt die aktive Funkkonfiguration und:
+
+- **Weitergeleitete Pakete**, getrennt nach Tracker-Paketen und fremden Meshtastic-Paketen, sowie fremde
+  Pakete, die wegen des Sendezeit-Budgets nicht weitergeleitet wurden.
+- **Empfangen über Meshtastic**: Tracker-Pakete, deren letzter Weiterleiter kein bekannter Tracker war.
+  Steigt der Wert, vergrößert ein Meshtastic-Knoten tatsächlich die Reichweite. In der Trackerliste steht
+  dann "(Meshtastic)" beim Weg. Die Erkennung nutzt nur das letzte Byte der Knoten-ID und ist deshalb
+  eine Schätzung.
+- **URL wiederholt**: Hört ein Tracker nach dem Senden seiner Request-URL 30 s lang keine Weiterleitung, sendet
+  er sie einmal erneut.
+
+Damit Nachbarn auch Gateways als Tracker erkennen, schickt jeder Tracker, der 15 Minuten lang nichts
+gesendet hat, eine kurze Kennung (2 Byte, wird nicht weitergeleitet).
 
 ### Antenne
 
@@ -500,7 +584,8 @@ Das Gehäuse ist nicht wasserdicht (USB-Öffnung, Schalterschlitz). Bei Regen ei
 ## Firmware-Release
 
 Ein Push auf den Branch `release` startet `.github/workflows/release-firmware.yml`. Die Action baut die
-Firmware mit dem Secret `MESH_PSK_B64` und legt ein GitHub Release an. Die Versionsnummer steht in
+Firmware und legt ein GitHub Release an. Ist das Secret `MESH_PSK_B64` gesetzt, wird der Schlüssel
+eingebaut und ist damit öffentlich lesbar (siehe [Mesh-Schlüssel](#mesh-schlüssel-wichtig)). Die Versionsnummer steht in
 `platformio.ini` bei `-DFW_VERSION`. Der Tag ist diese Version mit vorangestelltem `v`, aktuell
 `v1.0.1`. Zeigt der Tag schon auf einen anderen Commit, bricht der Lauf ab. Dann zuerst `FW_VERSION`
 erhöhen und den Branch `release` erneut pushen.
@@ -514,7 +599,13 @@ ist, ob es ein neueres Release gibt. Dazu lädt er `version.txt` aus dem neueste
 neu. Schlägt der Download fehl, bleibt die alte Firmware aktiv. Die Prüfung läuft nur in den ersten
 10 Minuten nach dem Start (bei Netzfehlern jede Minute erneut), damit der Tracker nie mitten im Einsatz
 neu startet. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Root-Zertifikaten
-(`src/ota.cpp`). Lokale Builds ohne Versionsnummer im Format `x.y.z` prüfen nicht auf Updates.
+(`src/certs.cpp`).
+
+Updates kommen aus dem Repository in `OTA_REPO` (Standard `denni95112/uav-bos-hardware-tracker`). Auch
+selbst gebaute Firmware hat eine Versionsnummer aus `platformio.ini` und wird ersetzt, sobald dort ein
+neueres Release erscheint. Wer eine eigene Variante betreibt, setzt `-DOTA_REPO=\"owner/repo\"` auf das
+eigene Repository. Nur Builds ohne `FW_VERSION` im Format `x.y.z` prüfen nicht auf Updates. Der
+Mesh-Schlüssel bleibt bei Updates erhalten.
 
 ## Firmware anpassen
 
@@ -524,8 +615,9 @@ neu startet. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Roo
 | Geschwindigkeitseinheit, JSON-Format | `uplink::buildJson` in `src/uplink.cpp`                 |
 | Genauigkeitsschätzung (UERE)      | `kUereMeters` in `src/gnss.cpp`                            |
 | Timeouts (WLAN, AP-Leerlauf, Taste) | Anfang von `src/main.cpp`                                |
-| TLS-Zertifikatsprüfung            | `-DUPLINK_VERIFY_TLS` in `platformio.ini` einkommentieren (ISRG Root X1, genutzt von gps.beta.uav-bos.de) |
-| Mesh-Schlüssel                    | `MESH_PSK_B64` in `.env`, als Umgebungsvariable, oder als GitHub-Secret `MESH_PSK_B64` |
+| TLS-Zertifikatsprüfung            | Standard an, Root-Zertifikate in `src/certs.cpp` (Let's Encrypt für gps.beta.uav-bos.de, GitHub). Für Server mit anderer CA das Zertifikat ergänzen oder notfalls `-DUPLINK_INSECURE_TLS` setzen |
+| Update-Quelle (OTA)               | `-DOTA_REPO` in `platformio.ini`                           |
+| Mesh-Schlüssel                    | Einstellungsseite; optional als Startwert `MESH_PSK_B64` in `.env` oder als Umgebungsvariable |
 | Mesh-Kanalname                    | `-DMESH_CHANNEL_NAME` in `platformio.ini`                    |
 | LoRa-Funkparameter, Airtime-Limit, Hop-Limit | Anfang von `src/mesh.cpp`                       |
 | LoRa-Nachrichtenformat            | `src/meshproto.cpp`                                        |

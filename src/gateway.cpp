@@ -62,6 +62,7 @@ CacheEntry &findOrCreate(uint32_t node) {
     }
     if (e.lastUsedMs < victim->lastUsedMs) victim = &e;
   }
+  if (victim->node) mesh::clearDeliverable(victim->node);
   if (victim->node && victim->url.length()) {
     Preferences prefs;
     prefs.begin(kNamespace, false);
@@ -79,6 +80,7 @@ void storeCredentials(const MeshRx &rx) {
   if (e.hash == rx.urlHash && e.url == rx.url) return;
   e.hash = rx.urlHash;
   e.url = rx.url;
+  mesh::setDeliverable(rx.from, e.hash);
 
   Preferences prefs;
   prefs.begin(kNamespace, false);
@@ -124,10 +126,13 @@ bool forwardPosition(const MeshRx &rx, const GnssFix &ownFix) {
   f.heading = p.heading;
   f.accuracy = p.accuracy;
 
+  // Relays of this tracker's positions are only suppressed while its own URL works.
   if (uplink::post(e->url, uplink::buildJson(f), st.up)) {
     st.forwarded++;
+    mesh::setDeliverable(rx.from, e->hash);
   } else {
     st.failed++;
+    mesh::clearDeliverable(rx.from);
   }
   Serial.printf("[gateway] !%08lx (%u hops, SNR %.1f) -> HTTP %d\n", (unsigned long)rx.from, rx.hops, rx.snr,
                 st.up.lastHttpCode);
@@ -148,6 +153,7 @@ void begin() {
     cache[i].node = nodes[i];
     cache[i].url = url;
     cache[i].hash = meshproto::urlHash(std::string(url.c_str()));
+    mesh::setDeliverable(nodes[i], cache[i].hash);
   }
   prefs.end();
   countKnown();

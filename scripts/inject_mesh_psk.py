@@ -1,5 +1,6 @@
 # PlatformIO pre-script. Injects MESH_PSK_B64 from the environment or a gitignored .env file.
-# Release builds receive the value from the GitHub Actions secret MESH_PSK_B64.
+# The value is only the initial key for devices without a key in NVS. It ends up readable in the
+# binary, so public release builds should be made without it.
 
 Import("env")
 
@@ -49,9 +50,7 @@ if psk:
     header.write_text('#pragma once\n#define MESH_PSK_B64 "%s"\n' % escaped, encoding="utf-8")
     print("Mesh key loaded (%d bytes)" % len(raw))
 else:
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        fail("GitHub Actions secret MESH_PSK_B64 is missing")
     header.write_text("#pragma once\n", encoding="utf-8")
-    print("MESH_PSK_B64 not set; using placeholder mesh key")
+    print("MESH_PSK_B64 not set; devices use the key stored on them (set on the settings page)")
 
 env.Append(CCFLAGS=["-include", header.as_posix()])

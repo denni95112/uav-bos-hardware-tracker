@@ -238,9 +238,12 @@ void showLoraOnly(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSe
     line(52, C_DIM, "LoRa: noch nicht gesendet");
   } else {
     char age[12];
+    uint32_t effectiveSec = (uint32_t)intervalSec * mesh.intervalScale;
+    // Stationary trackers send only every 120 s (times the scale), which is not a fault.
+    uint32_t okMs = 2000UL * max<uint32_t>(effectiveSec, 120UL * mesh.intervalScale);
     formatAge(age, sizeof(age), millis() - mesh.lastTxMs);
-    snprintf(buf, sizeof(buf), "LoRa: vor %s (alle %us)", age, intervalSec);
-    line(52, millis() - mesh.lastTxMs < 3000UL * intervalSec ? C_OK : C_WARN, buf);
+    snprintf(buf, sizeof(buf), "LoRa: vor %s (alle %lus)", age, (unsigned long)effectiveSec);
+    line(52, millis() - mesh.lastTxMs < okMs ? C_OK : C_WARN, buf);
   }
 
   snprintf(buf, sizeof(buf), "%u Kn  Rel %lu  Air %.1f%%", mesh.heardNodes, (unsigned long)mesh.relayCount,
@@ -250,7 +253,7 @@ void showLoraOnly(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSe
   if (mesh.placeholderKey) {
     line(72, C_WARN, "Standard-Schluessel!");
   } else {
-    snprintf(buf, sizeof(buf), "Knoten !%08lx", (unsigned long)mesh.nodeNum);
+    snprintf(buf, sizeof(buf), "!%08lx  %s", (unsigned long)mesh.nodeNum, mesh.presetName);
     line(72, C_DIM, buf);
   }
   push();

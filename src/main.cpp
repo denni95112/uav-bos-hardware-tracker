@@ -26,6 +26,7 @@ constexpr uint32_t kModeCommitMs = 3000;
 constexpr uint32_t kDebounceMs = 40;
 constexpr uint32_t kDisplayRefreshMs = 500;
 constexpr uint32_t kConnectingRefreshMs = 250;
+constexpr uint32_t kUplinkFreshMs = 120000; // a gateway counts as online this long after a successful POST
 // Updates only right after power-up, never mid-operation: a failed check is retried for 10 minutes.
 constexpr uint32_t kOtaWindowMs = 10UL * 60 * 1000;
 constexpr uint32_t kOtaRetryMs = 60000;
@@ -96,7 +97,7 @@ void enterLoraOnly() {
 void applyMode() {
   Serial.printf("[main] mode %s\n", config::modeName(cfg.mode));
   display::setMode(cfg.mode);
-  if (cfg.usesLora()) mesh::begin();
+  if (cfg.usesLora()) mesh::begin(cfg.mesh, cfg.meshKey);
   mesh::setActive(cfg.usesLora());
 
   if (!configReady()) enterConfigAp(false);
@@ -113,7 +114,7 @@ void switchMode(TrackerMode mode) {
     // WLAN <-> Gateway only changes the radio, the WiFi connection (and the web page) stays up.
     Serial.printf("[main] mode %s\n", config::modeName(cfg.mode));
     display::setMode(cfg.mode);
-    if (cfg.usesLora()) mesh::begin();
+    if (cfg.usesLora()) mesh::begin(cfg.mesh, cfg.meshKey);
     mesh::setActive(cfg.usesLora());
   } else {
     applyMode();
@@ -276,11 +277,25 @@ void loopRunning(const GnssFix &fix) {
   }
 }
 
+// Most recent POST of the own position or a forwarded one, nullptr if none yet.
+const UplinkStatus *lastUplinkAttempt() {
+  const UplinkStatus &own = uplink::status();
+  const UplinkStatus &fwd = gateway::stats().up;
+  if (!own.lastAttemptMs) return fwd.lastAttemptMs ? &fwd : nullptr;
+  if (!fwd.lastAttemptMs) return &own;
+  return (int32_t)(own.lastAttemptMs - fwd.lastAttemptMs) >= 0 ? &own : &fwd;
+}
+
 void loopMesh(const GnssFix &fix) {
   if (!cfg.usesLora()) return;
   bool wifiUp = state == State::Running && WiFi.status() == WL_CONNECTED;
-  // A gateway without internet falls back to sending its own position over LoRa.
-  bool sendOwn = cfg.mode == TrackerMode::LoraOnly || !wifiUp;
+  // WiFi alone says nothing about the internet behind it (e.g. LTE router without signal).
+  const UplinkStatus *last = lastUplinkAttempt();
+  bool uplinkFailing = last && last->consecutiveFails > 0;
+  bool uplinkProven = last && !uplinkFailing && millis() - last->lastSuccessMs < kUplinkFreshMs;
+  // A gateway without working internet falls back to sending its own position over LoRa.
+  bool sendOwn = cfg.mode == TrackerMode::LoraOnly || !wifiUp || uplinkFailing;
+  mesh::setUplinkOnline(cfg.mode == TrackerMode::Gateway && wifiUp && uplinkProven);
   mesh::loop(fix, cfg.url, cfg.loraIntervalSec, sendOwn);
   gateway::loop(cfg.mode == TrackerMode::Gateway && wifiUp, fix);
 }

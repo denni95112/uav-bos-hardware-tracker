@@ -58,6 +58,7 @@ enum MsgType : uint8_t {
   MsgPosition = 0x01,
   MsgCredentials = 0x02,
   MsgCredRequest = 0x03,
+  MsgHello = 0x04, // not relayed, lets neighbours recognise this node as a tracker relay
 };
 
 struct Position {
@@ -79,6 +80,7 @@ uint16_t urlHash(const std::string &url);
 size_t encodePosition(const Position &p, uint8_t *out, size_t outCap);
 size_t encodeCredentials(const std::string &url, uint8_t *out, size_t outCap);
 size_t encodeCredRequest(uint8_t *out, size_t outCap);
+size_t encodeHello(uint8_t *out, size_t outCap);
 
 // Returns the message type, 0 if the payload is not a valid tracker message.
 uint8_t messageType(const uint8_t *in, size_t len);

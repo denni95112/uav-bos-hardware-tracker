@@ -197,12 +197,20 @@ size_t encodeCredRequest(uint8_t *out, size_t outCap) {
   return 2;
 }
 
+size_t encodeHello(uint8_t *out, size_t outCap) {
+  if (outCap < 2) return 0;
+  out[0] = MsgHello;
+  out[1] = kVersion;
+  return 2;
+}
+
 uint8_t messageType(const uint8_t *in, size_t len) {
   if (len < 2 || in[1] != kVersion) return 0;
   switch (in[0]) {
   case MsgPosition: return len >= kPositionLen ? MsgPosition : 0;
   case MsgCredentials: return len > 5 ? MsgCredentials : 0;
   case MsgCredRequest: return MsgCredRequest;
+  case MsgHello: return MsgHello;
   default: return 0;
   }
 }

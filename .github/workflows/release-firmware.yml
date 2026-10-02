@@ -44,6 +44,8 @@ jobs:
       - name: Mask mesh key
         run: echo "::add-mask::${{ secrets.MESH_PSK_B64 }}"
 
+      # MESH_PSK_B64 is optional and only seeds devices that have no key stored yet. Release assets are
+      # public and the key can be read from them, so leave the secret unset once all devices store a key.
       - name: Build firmware
         env:
           MESH_PSK_B64: ${{ secrets.MESH_PSK_B64 }}
