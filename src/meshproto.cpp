@@ -7,7 +7,7 @@ namespace meshproto {
 
 namespace {
 
-const char kUrlPrefix[] = "https://api.beta.uav-bos.de/telemetry/objects/";
+const char kUrlPrefix[] = "https://gps.beta.uav-bos.de/telemetry/objects/";
 constexpr uint8_t kCredFlagPrefix = 0x01;
 
 void putU16(uint8_t *p, uint16_t v) {

@@ -10,7 +10,7 @@ static constexpr uint16_t kTimeoutMs = 5000;
 static constexpr uint32_t kMaxBackoffMs = 60000;
 
 #ifdef UPLINK_VERIFY_TLS
-// ISRG Root X1 (Let's Encrypt), root of api.beta.uav-bos.de. Valid until 2035-06-04.
+// ISRG Root X1 (Let's Encrypt), root of gps.beta.uav-bos.de. Valid until 2035-06-04.
 static const char *kRootCa = R"PEM(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh

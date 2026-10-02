@@ -60,7 +60,7 @@ small{color:#777}code{word-break:break-all}
 <label>SSID <small>(bei "Nur LoRa" optional)</small></label><input name="ssid" id="ssid" maxlength="32">
 <label>WLAN-Passwort <small id="passhint"></small></label><input name="pass" id="pass" type="password" maxlength="63">
 <label>Request-URL (vollstaendig, wird unveraendert per POST aufgerufen)</label>
-<input name="url" id="url" type="url" placeholder="https://api.beta.uav-bos.de/telemetry/objects/vehicle-key/api-key">
+<input name="url" id="url" type="url" placeholder="https://gps.beta.uav-bos.de/telemetry/objects/vehicle-key/api-key">
 <small id="urlhint"></small>
 <label>Sendeintervall (Sekunden)</label><input name="interval" id="interval" type="number" min="1" max="3600" required>
 <label>Betriebsart <small>(auch per kurzem Tastendruck umschaltbar)</small></label>

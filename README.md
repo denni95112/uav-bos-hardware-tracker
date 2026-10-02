@@ -1,11 +1,15 @@
 # UAV-BOS Fahrzeug-Tracker
 
 GPS-Tracker für ein Feuerwehrfahrzeug. Er sendet die Fahrzeugposition an
-[UAV BOS](https://api.beta.uav-bos.de), damit das Fahrzeug neben den Drohnen auf der Karte erscheint.
+[UAV BOS](https://gps.beta.uav-bos.de), damit das Fahrzeug neben den Drohnen auf der Karte erscheint.
 
 - Hardware: Fastsaw / Heltec **Wireless Tracker V1.1** (ESP32-S3, UC6580 GNSS, 0,96" ST7735 TFT)
 - Firmware: PlatformIO + Arduino (`src/`)
 - Gehäuse: parametrisches OpenSCAD (`case/tracker_case.scad`)
+
+> **Firmware ganz einfach aufspielen:** Tracker per USB-C anschließen und auf
+> [ubhtwf.open-drone-tools.de](https://ubhtwf.open-drone-tools.de/) auf **Installieren** klicken.
+> Das funktioniert direkt im Browser (Google Chrome oder Microsoft Edge am PC), ohne Software-Installation.
 
 Du hast wenig Erfahrung mit Technik? Dann starte mit der
 [Schritt-für-Schritt-Anleitung zum Nachbauen](#nachbau-anleitung-für-einsteiger).
@@ -47,6 +51,12 @@ Außerdem brauchst du:
 
 ### 3. Software auf den Tracker aufspielen ("flashen")
 
+**Am einfachsten:** Tracker per USB-C anschließen, in Google Chrome oder Microsoft Edge
+[ubhtwf.open-drone-tools.de](https://ubhtwf.open-drone-tools.de/) öffnen und auf **Installieren** klicken.
+Dann brauchst du die folgenden Schritte und Visual Studio Code nicht.
+
+Alternativ mit PlatformIO:
+
 1. Kopiere den kompletten Projektordner auf deinen PC (z. B. ZIP herunterladen und entpacken).
 2. In Visual Studio Code: **Datei → Ordner öffnen…** und den Projektordner auswählen
    (den Ordner, in dem die Datei `platformio.ini` liegt).
@@ -74,7 +84,7 @@ Wenn alles geklappt hat, zeigt das Display das UAV-BOS-Logo und danach den Einri
    - **WLAN-Name (SSID) und Passwort** des Fahrzeug-Routers bzw. Hotspots. Mit "Suchen" werden
      WLANs in der Nähe angezeigt.
    - **Request-URL** von UAV BOS, z. B.
-     `https://api.beta.uav-bos.de/telemetry/objects/<Fahrzeug-Schlüssel>/<API-Schlüssel>`
+     `https://gps.beta.uav-bos.de/telemetry/objects/<Fahrzeug-Schlüssel>/<API-Schlüssel>`
    - **Sendeintervall**: 5 Sekunden sind ein guter Wert.
    - **Betriebsart**: "Nur WLAN" wie bisher, "Gateway" oder "Nur LoRa" für das Funk-Mesh (siehe
      [LoRa-Mesh / Betriebsarten](#lora-mesh--betriebsarten)). Bei "Nur LoRa" darf die SSID leer bleiben.
@@ -262,7 +272,7 @@ Funkchip beschädigen. Das Gehäuse hat mit `lora_sma` ein Loch für eine SMA-Ei
 3. Eintragen:
    - **SSID / Passwort** des Fahrzeug-WLANs ("Suchen" startet einen Scan), bei "Nur LoRa" optional
    - **Betriebsart** und **LoRa-Sendeintervall**
-   - **Request-URL**, z. B. `https://api.beta.uav-bos.de/telemetry/objects/<vehicle-key>/<api-key>`
+   - **Request-URL**, z. B. `https://gps.beta.uav-bos.de/telemetry/objects/<vehicle-key>/<api-key>`
    - **Sendeintervall** in Sekunden
    - optional **AP-Passwort** (mind. 8 Zeichen). Schützt auch die Webseite, Benutzer `admin`.
 4. "Speichern & Neustart". Der Tracker startet neu, verbindet sich und beginnt zu senden.
@@ -379,7 +389,7 @@ neu startet. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Roo
 | Geschwindigkeitseinheit, JSON-Format | `uplink::buildJson` in `src/uplink.cpp`                 |
 | Genauigkeitsschätzung (UERE)      | `kUereMeters` in `src/gnss.cpp`                            |
 | Timeouts (WLAN, AP-Leerlauf, Taste) | Anfang von `src/main.cpp`                                |
-| TLS-Zertifikatsprüfung            | `-DUPLINK_VERIFY_TLS` in `platformio.ini` einkommentieren (ISRG Root X1, genutzt von api.beta.uav-bos.de) |
+| TLS-Zertifikatsprüfung            | `-DUPLINK_VERIFY_TLS` in `platformio.ini` einkommentieren (ISRG Root X1, genutzt von gps.beta.uav-bos.de) |
 | Mesh-Schlüssel                    | `MESH_PSK_B64` in `.env`, als Umgebungsvariable, oder als GitHub-Secret `MESH_PSK_B64` |
 | Mesh-Kanalname                    | `-DMESH_CHANNEL_NAME` in `platformio.ini`                    |
 | LoRa-Funkparameter, Airtime-Limit, Hop-Limit | Anfang von `src/mesh.cpp`                       |
