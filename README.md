@@ -5,7 +5,7 @@ GPS-Tracker für ein Feuerwehrfahrzeug. Er sendet die Fahrzeugposition an
 
 - Hardware: Fastsaw / Heltec **Wireless Tracker V1.1** (ESP32-S3, UC6580 GNSS, 0,96" ST7735 TFT)
 - Firmware: PlatformIO + Arduino (`src/`)
-- Gehäuse: parametrisches OpenSCAD (`case/tracker_case.scad`)
+- Gehäuse: parametrisches OpenSCAD (`case/tracker_case.scad`), Akku-Version für Personen (`case/tracker_case_battery.scad`)
 
 > **Firmware ganz einfach aufspielen:** Tracker per USB-C anschließen und auf
 > [ubhtwf.open-drone-tools.de](https://ubhtwf.open-drone-tools.de/) auf **Installieren** klicken.
@@ -361,6 +361,141 @@ Deckel mit 4x M3 x 8 Zylinderkopfschrauben verschließen. Ein 0,5 mm klares
 PET-/Acrylfenster kann innen in die Vertiefung des Deckels geklebt werden.
 
 Druck in **PETG oder ASA**. PLA wird in einem in der Sonne geparkten Auto weich. 0,2 mm Schichthöhe, 3 Wände, keine Stützen.
+
+## Akku-Version für Personen (`case/tracker_case_battery.scad`)
+
+Tragbarer Tracker, z. B. für Suchtrupps im Betrieb "Nur LoRa". Er wird an einem normalen Schlüsselband
+mit Karabiner um den Hals getragen. Eine 18650-Zelle in einem Standard-Halter liegt unter der Platine.
+Displayfenster, Tasten und Deckel sind wie beim Fahrzeuggehäuse.
+
+![Akku-Version, getragen](case/worn_battery.png)
+![Akku-Version](case/assembly_battery.png)
+![Akku-Version, Explosionsansicht](case/exploded_battery.png)
+
+### Was das Board schon kann
+
+Geprüft am [Schaltplan V1.1 (HTIT-Tracker_V0.5)](https://resource.heltec.cn/download/Wireless_Tracker/Wireless_Tacker1.1/HTIT-Tracker_V0.5.pdf)
+und am [Datenblatt](https://resource.heltec.cn/download/Wireless_Tracker/Wireless%20Tracker1.1.pdf):
+
+| Funktion | Auf dem Board | Bauteil |
+|----------|---------------|---------|
+| Akkuanschluss | ja | JP3, SH1.25 2-polig, Unterseite am USB-Ende. Pin 1 = VBAT, Pin 2 = GND |
+| Laden über USB-C | ja, 500 mA, Ladeschluss 4,2 V | TP4054 (linear), R16 = 2 kΩ |
+| Umschaltung USB / Akku | ja | P-MOSFET Q1 (AO3401) + Schottky D1 (1N5819). Bei USB läuft das Board vom USB, der Akku wird nur geladen |
+| 3,3-V-Versorgung | ja, kein Aufwärtswandler nötig | 2x LDO CE6260B33M (Board und Vext für GNSS/TFT) |
+| Akkuspannung messen | ja | Teiler 390k/100k an GPIO1, über GPIO2 zuschaltbar (`PIN_BAT_ADC` in `src/pins.h`) |
+| Tiefentladeschutz, Kurzschlussschutz | **nein** | |
+| Ein/Aus-Schalter | **nein** | |
+| Verpolschutz am Akkuanschluss | **nein** | |
+
+Ein Spannungswandler ist also nicht nötig: Die LDOs arbeiten direkt mit der Zellspannung (bis etwa 3,5 V
+volle 3,3 V, darunter sinkt die Versorgung langsam mit). Es fehlen aber ein Schalter und ein
+Tiefentladeschutz. Das Board würde die Zelle sonst bis zum Brownout des ESP32 (etwa 2,7 V) leeren.
+
+Laufzeit (Schätzung, nicht gemessen): im Betrieb "Nur LoRa" mit GNSS und Display etwa 100 bis 130 mA,
+mit 3000 bis 3500 mAh also grob 20 bis 30 Stunden. Display aus verlängert die Laufzeit, WLAN/Gateway
+verkürzt sie deutlich. Volles Laden mit 500 mA dauert 7 bis 8 Stunden.
+
+### Zusätzliche Teile
+
+| Teil | Hinweis |
+|------|---------|
+| **Geschützte** 18650-Li-Ion-Zelle mit Button-Top, 3000 bis 3500 mAh | Mit eingebauter Schutzschaltung (Tiefentlade-, Überlade-, Kurzschlussschutz), dadurch keine Schutzplatine nötig. Typisch 68 bis 70 mm lang, 18,5 bis 18,8 mm dick. Nur aus seriösem Fachhandel, Länge im Datenblatt prüfen |
+| Batteriehalter **MPD BH-18650-W** ([Datenblatt](https://www.memoryprotectiondevices.com/datasheets/BH-18650-W/BH-18650-W-datasheet.pdf)) | 77,7 x 20,9 x 21,3 mm, 150-mm-Litzen (24 AWG) an beiden Enden, ausgelegt für geschützte Zellen. Erhältlich z. B. bei Conrad, Mouser, DigiKey. Laut Hersteller mit Klebeband befestigen |
+| Schiebeschalter **C&K TS01CQE** ([Datenblatt](https://catalogue2.pss-electrocomponents.com/catalogue/437/TS01CQE.pdf)) | 1x Um, Silberkontakte, 3 A bei 28 V DC. Gehäuse 10,2 x 5,1 x 8,8 mm, Hebel 3,1 mm, 3 mm Schaltweg. Erhältlich z. B. bei TME, Mouser, Farnell |
+| SH1.25-Akkukabel, 2-polig | Liegt dem Heltec-Board bei, beim Fastsaw prüfen |
+| U.FL-auf-SMA-Pigtail (ca. 10 cm) + 868-MHz-Antenne mit SMA-Stecker | LoRa-Antenne an der Unterkante, zeigt beim Tragen nach unten. Eine kurze Stummelantenne ist am Körper robuster als eine lange |
+| 4x ruthex M3 x 5,7 + 4x M3 x 8 | wie beim Fahrzeuggehäuse |
+| doppelseitiges Schaumklebeband, Schrumpfschlauch, Litze 0,14 bis 0,25 mm² | Halter auf den Boden kleben, Lötstellen isolieren |
+| Schlüsselband (ca. 20 mm) mit Karabinerhaken | Der Haken greift in den Bügel oben in der Mitte. Der Steg ist 3,5 mm dick, die Hakenöffnung muss das schaffen. **Empfohlen: Schlüsselband mit Sicherheitsverschluss im Nacken**, der bei Zug aufgeht. Im Unterholz kann man sonst am Band hängen bleiben |
+
+Die Stößel sind dieselben wie beim Fahrzeuggehäuse (`plunger_user.stl`, `plunger_reset.stl`).
+
+Nicht geeignet sind die üblichen Mini-Schiebeschalter SS-12D00 (C&K: 0,3 A bei 6 V) und E-Switch EG1218 (0,2 A).
+Der Ladestrom des Boards beträgt 500 mA und fließt über den Schalter.
+
+Ausweichlösung aus dem Amazon-Sortiment:
+
+- **Schalter RUNCCI-YUN (B09TVDZ8P2)**: mit `sw_type = "RUNCCI"` vorbereitet. Laut Angebot 0,5 A bei 50 V DC
+  (bzw. 2 A bei 125 V AC), Gehäuse 12,7 x 6,6 mm, Hebel 5 mm. Bei 0,5 A gibt es keine Reserve zum Ladestrom, es
+  gibt kein Datenblatt. Bei 4,2 V ist das in der Praxis meist unkritisch, der TS01CQE bleibt aber die bessere Wahl.
+  Das Gehäuse ist 2,5 mm länger als der TS01, deshalb entfallen die seitlichen Stege, nur die Wandtasche hält ihn.
+  Gehäusetiefe, Hebelquerschnitt und Schaltweg stehen nicht im Angebot. Vor dem Druck nachmessen und die Werte in
+  `sw_presets` eintragen. Der Hebel steht etwa 4 mm heraus und kann sich am Band oder in der Kleidung verhaken.
+- **Halter Hugcows (B0GWJ7VMMB)**: laut Angebot für geschützte Zellen, aber ohne Maßangaben. Halter nachmessen und
+  `hold_l`, `hold_w`, `hold_h` setzen (Höhe = Boden bis Oberkante der Endwände). Das Gehäuse wächst in Länge und
+  Höhe mit. In der Breite passen Halter bis etwa 25 mm. Billige Federkontakte können bei Erschütterung kurz
+  unterbrechen, das Board startet dann neu. Die Zelle mit einem Streifen Klebeband im Halter sichern.
+
+Andere Bauteile gehen auch, dann die Parameter `hold_*`, `cell_*` und `sw_*` anpassen. Mit einer ungeschützten Zelle
+braucht es zusätzlich eine 1S-Schutzplatine (DW01A + FS8205A) und einen Halter, der für 65-mm-Zellen ausgelegt ist.
+
+### Verdrahtung
+
+```
+Halter + (hinten, Schalterseite) ── TS01 Pin 2 (Mitte)     TS01 Pin 1 ── SH1.25 Pin 1 (VBAT, +)
+Halter − (vorne, USB-Seite) ─────────────────────────────────────────── SH1.25 Pin 2 (GND, −)
+```
+
+Halter so einkleben, dass das Plus-Ende hinten beim Schalter liegt. Dann ist der Minuspol vorne direkt am
+Akkustecker der Platine, und die Plus-Litze läuft nur bis zum Schalter. Vom Schalter führt eine kurze Litze unter der
+Platine nach vorne zum Stecker. Pin 3 des Schalters bleibt frei.
+
+- **Polarität vor dem Einstecken mit dem Multimeter prüfen.** Das Board hat keinen Verpolschutz, und
+  Akkukabel von Drittanbietern haben oft vertauschte Farben. Maßgeblich ist die Markierung an JP3 auf der Platine.
+- Laden geht nur bei Schalter **EIN**, weil der Laderegler hinter dem Schalter sitzt. Bei Schalter AUS und
+  USB läuft das Board vom USB, lädt aber nicht.
+- Zum Lagern Schalter auf AUS. Die Schutzschaltung der Zelle schaltet erst bei etwa 2,5 V ab, das ist nur die letzte Sicherung.
+
+### Gehäuse
+
+Außenmaße: 86,7 x 32,7 x 36,0 mm, zuzüglich Schraubsäulen (je 4,3 mm diagonal) und Bügel (8 mm), ohne Antenne.
+
+Beim Tragen hängt das Gerät quer, weil das Display im Querformat läuft:
+
+- **Oben**: Bügel für den Karabiner in der Mitte, daneben hinten der Ein/Aus-Schalter.
+- **Unten**: LoRa-Antenne, zeigt senkrecht nach unten (gleiche Polarisation wie die anderen Knoten).
+- **Seite**: USB-C zum Laden, auch während das Gerät hängt.
+- Der Bügel sitzt nahe am Deckel, oberhalb des Schwerpunkts. Das Display kippt dadurch etwas nach oben
+  zum Träger und zum Himmel (gut für die Onboard-GNSS-Antenne).
+
+Welche Längsseite oben ist, legt `lanyard_side` fest. Standard ist `"left"` (von oben gesehen, USB-C zu dir:
+die Seite mit der Reset-Taste). Am fertigen Fahrzeug-Tracker prüfen, wo die Oberkante der Schrift ist; steht
+sie bei `"left"` auf dem Kopf, `lanyard_side = "right"` setzen. Bügel, Schalter und Antenne wechseln dann gemeinsam die Seite.
+
+| Parameter | Standard / Bedeutung |
+|-----------|----------------------|
+| `hold_l`, `hold_w`, `hold_h` | 77,7 x 20,9 x 21,3 mm MPD BH-18650-W (Boden bis Oberkante der Endwände), `hold_clr` 0,6 mm deckt die Toleranz von ±0,5 mm ab |
+| `hold_lead_space` | 2,5 mm an beiden Enden für Lötfahnen und Litzen |
+| `bottom_clear` | 5,0: Raum zwischen Halter und Platine für Akkustecker und Litzen |
+| `lanyard`, `lanyard_side` | Bügel für das Schlüsselband (Standard an), Seite, die beim Tragen oben ist |
+| `lug_w`, `lug_depth`, `lug_bar`, `lug_open` | Bügel 6 mm breit, steht 8 mm ab, Steg 3,5 mm, Durchlass am Steg 6 mm hoch; `lug_x` verschiebt ihn entlang der Kante |
+| `power_switch`, `sw_type`, `sw_presets` | Schlitz, Tasche und Halterung für den Schalter in der Oberkante, `sw_type` = `"TS01CQE"` oder `"RUNCCI"`. In der Tasche ist die Wand nur `sw_wall` dick (TS01 1 mm, damit der kurze Hebel etwa 2 mm heraussteht). Seitliche Stege nur, wenn das hintere Fach lang genug ist. Der Schalter wird von innen eingeklebt |
+| `lora_sma`, `gnss_sma` | LoRa-SMA in der Unterkante (Standard an), GNSS-SMA an der Stirnseite (Standard aus) |
+| `strap_loops`, `strap_w` | Alternative zum Bügel: flache Laschen mit Schlitz für 25-mm-Gurtband (Standard aus) |
+
+Die Platine liegt an den vier Ecken auf Konsolen, die aus den Seitenwänden kommen. Damit kollidieren sie
+nicht mit dem Halter, und sie drucken wegen der 45°-Unterseite ohne Stützen. Der Bügel ist von der
+Stirnseite gesehen ein Sechseck mit 45°-Schrägen und druckt ebenfalls ohne Stützen. Seine Schichten liegen
+in Zugrichtung, er hält deshalb deutlich mehr als das Gewicht des Geräts. Die Werte für Platine,
+Display, Tasten, Anschläge und Niederhalter sind aus dem Fahrzeuggehäuse übernommen.
+
+Export:
+
+```
+openscad -o case/battery_base.stl -D 'part="base"' case/tracker_case_battery.scad
+openscad -o case/battery_lid.stl  -D 'part="lid"'  case/tracker_case_battery.scad
+```
+
+`part="assembly"` zeigt das zusammengebaute Gerät mit allen Teilen, `part="exploded"` die Explosionsansicht.
+
+Zusammenbau: Gewindeeinsätze einschmelzen. Schalter von innen in den Schlitz setzen und verkleben.
+Halterlitzen, Schalter und Akkukabel verlöten und isolieren. Halter mit Schaumklebeband zwischen die
+Rippen am Boden kleben, Zelle einsetzen. SMA-Buchse montieren, U.FL auf den LoRa-Anschluss stecken.
+Polarität prüfen, Akkustecker einstecken, Platine einlegen (USB-C in die Öffnung), Stößel in den Deckel,
+Deckel verschrauben. Karabiner des Schlüsselbands in den Bügel einhängen.
+
+Das Gehäuse ist nicht wasserdicht (USB-Öffnung, Schalterschlitz). Bei Regen eine Hülle verwenden. Druck in PETG oder ASA.
 
 ## Firmware-Release
 
