@@ -68,11 +68,21 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p dist
-          cp .pio/build/wireless_tracker/firmware.bin "dist/uav-bos-tracker-${VERSION}.bin"
-          cp .pio/build/wireless_tracker/firmware.elf "dist/uav-bos-tracker-${VERSION}.elf"
+          BUILD=.pio/build/wireless_tracker
+          cp "${BUILD}/firmware.bin" "dist/uav-bos-tracker-${VERSION}.bin"
+          cp "${BUILD}/firmware.elf" "dist/uav-bos-tracker-${VERSION}.elf"
+          # Full flash image at offset 0x0 for the web flash tool (bootloader, partitions, boot_app0, app)
+          python -m pip install esptool
+          python -m esptool --chip esp32s3 merge_bin \
+            -o "dist/uav-bos-tracker-${VERSION}-factory.bin" \
+            --flash_mode keep --flash_freq keep --flash_size 8MB \
+            0x0 "${BUILD}/bootloader.bin" \
+            0x8000 "${BUILD}/partitions.bin" \
+            0xe000 "${HOME}/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" \
+            0x10000 "${BUILD}/firmware.bin"
           # Read by the tracker's OTA check via releases/latest/download/version.txt
           echo "${VERSION}" > dist/version.txt
-          sha256sum "dist/uav-bos-tracker-${VERSION}.bin" "dist/uav-bos-tracker-${VERSION}.elf" > dist/SHA256SUMS
+          (cd dist && sha256sum "uav-bos-tracker-${VERSION}.bin" "uav-bos-tracker-${VERSION}.elf" "uav-bos-tracker-${VERSION}-factory.bin" > SHA256SUMS)
 
       - name: Publish GitHub Release
         env:
