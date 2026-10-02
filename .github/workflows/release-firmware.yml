@@ -70,6 +70,8 @@ jobs:
           mkdir -p dist
           cp .pio/build/wireless_tracker/firmware.bin "dist/uav-bos-tracker-${VERSION}.bin"
           cp .pio/build/wireless_tracker/firmware.elf "dist/uav-bos-tracker-${VERSION}.elf"
+          # Read by the tracker's OTA check via releases/latest/download/version.txt
+          echo "${VERSION}" > dist/version.txt
           sha256sum "dist/uav-bos-tracker-${VERSION}.bin" "dist/uav-bos-tracker-${VERSION}.elf" > dist/SHA256SUMS
 
       - name: Publish GitHub Release

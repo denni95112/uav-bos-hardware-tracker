@@ -6,6 +6,7 @@
 #include "gateway.h"
 #include "gnss.h"
 #include "mesh.h"
+#include "ota.h"
 #include "pins.h"
 #include "portal.h"
 #include "uplink.h"
@@ -25,6 +26,9 @@ constexpr uint32_t kModeCommitMs = 3000;
 constexpr uint32_t kDebounceMs = 40;
 constexpr uint32_t kDisplayRefreshMs = 500;
 constexpr uint32_t kConnectingRefreshMs = 250;
+// Updates only right after power-up, never mid-operation: a failed check is retried for 10 minutes.
+constexpr uint32_t kOtaWindowMs = 10UL * 60 * 1000;
+constexpr uint32_t kOtaRetryMs = 60000;
 
 enum class State { Connecting, ConfigAp, Running, LoraOnly };
 enum class Button { None, Short, HoldBacklight, HoldAp };
@@ -239,6 +243,20 @@ void loopConfigAp() {
   }
 }
 
+void checkOta() {
+  static bool done = false;
+  static uint32_t nextTryMs = 0;
+  uint32_t now = millis();
+  if (done || now < nextTryMs) return;
+  if (now > kOtaWindowMs) {
+    done = true;
+    return;
+  }
+  done = ota::checkAndInstall();
+  nextTryMs = millis() + kOtaRetryMs;
+  lastDisplayMs = 0;
+}
+
 void loopRunning(const GnssFix &fix) {
   portal::loop();
   checkReboot();
@@ -248,6 +266,8 @@ void loopRunning(const GnssFix &fix) {
     enterConnecting();
     return;
   }
+
+  checkOta();
 
   uint32_t now = millis();
   if (fix.valid && (lastSendMs == 0 || now - lastSendMs >= uplink::nextDelayMs(cfg.intervalSec))) {

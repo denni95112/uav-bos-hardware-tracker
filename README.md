@@ -360,6 +360,17 @@ Firmware mit dem Secret `MESH_PSK_B64` und legt ein GitHub Release an. Die Versi
 `v1.0.1`. Zeigt der Tag schon auf einen anderen Commit, bricht der Lauf ab. Dann zuerst `FW_VERSION`
 erhöhen und den Branch `release` erneut pushen.
 
+### Automatisches Update (OTA)
+
+Nach dem Einschalten prüft der Tracker in den WLAN-Betriebsarten (WLAN, Gateway), sobald er verbunden
+ist, ob es ein neueres Release gibt. Dazu lädt er `version.txt` aus dem neuesten Release
+(`releases/latest/download/version.txt`). Ist die Version höher als die eigene, lädt er
+`uav-bos-tracker-<version>.bin`, zeigt den Fortschritt im Display, installiert die Firmware und startet
+neu. Schlägt der Download fehl, bleibt die alte Firmware aktiv. Die Prüfung läuft nur in den ersten
+10 Minuten nach dem Start (bei Netzfehlern jede Minute erneut), damit der Tracker nie mitten im Einsatz
+neu startet. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Root-Zertifikaten
+(`src/ota.cpp`). Lokale Builds ohne Versionsnummer im Format `x.y.z` prüfen nicht auf Updates.
+
 ## Firmware anpassen
 
 | Was                               | Wo                                                         |
