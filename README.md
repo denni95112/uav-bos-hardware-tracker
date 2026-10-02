@@ -25,7 +25,8 @@ Code schreiben. Plane für den ersten Aufbau etwa 1 bis 2 Stunden ein.
 | Aktive GPS-Magnetantenne mit SMA-Stecker (L1, gerne L1/L5) | Besserer GPS-Empfang im Fahrzeug | Empfohlen. Die kleine Antenne auf der Platine empfängt im Auto oft schlecht |
 | Adapterkabel U.FL (auch "IPEX" genannt) auf SMA-Buchse | Verbindet die Antenne mit der Platine | Nur zusammen mit der externen Antenne nötig |
 | Gehäuse aus dem 3D-Drucker | Schutz der Platine | Optional, siehe [Gehäuse drucken lassen](#5-gehäuse-optional) |
-| 2x Schraube M2 x 6 (selbstschneidend) | Gehäuse verschließen | Nur mit Gehäuse |
+| 4x Zylinderkopfschraube M3 x 8 ([Amazon: B0B3MGZ7T2](https://www.amazon.de/dp/B0B3MGZ7T2)) | Gehäuse verschließen | Nur mit Gehäuse |
+| 4x Einschmelzgewinde ruthex M3 x 5,7 ([Amazon: B08BCRZZS3](https://www.amazon.de/dp/B08BCRZZS3)) | Gewinde für die Deckelschrauben, werden mit einem Lötkolben in das Unterteil eingeschmolzen | Nur mit Gehäuse |
 
 Außerdem brauchst du:
 
@@ -94,14 +95,15 @@ Wichtig: Material **PETG oder ASA**. PLA wird im heißen Auto weich.
 
 Zusammenbau:
 
-1. Die beiden Plunger (kleine Stifte) von innen in die Tastenlöcher im Deckel stecken. Von oben
+1. Einmalig die vier Gewindeeinsätze einschmelzen: Einsatz auf eines der vier Löcher oben im
+   Unterteil setzen, mit dem Lötkolben (etwa 230 °C bei PETG) erhitzen und gerade hineindrücken,
+   bis er bündig mit der Oberkante ist. Abkühlen lassen.
+2. Die beiden Plunger (kleine Stifte) von innen in die Tastenlöcher im Deckel stecken. Von oben
    gesehen, mit der USB-C-Seite zu dir: links Reset (X), rechts USER (Punkt).
-2. Platine in das Unterteil legen, die USB-C-Buchse zeigt in die Öffnung.
-3. Bei externer Antenne: SMA-Buchse des Adapterkabels in das Loch im Gehäuse schrauben und den
+3. Platine in das Unterteil legen, die USB-C-Buchse zeigt in die Öffnung.
+4. Bei externer Antenne: SMA-Buchse des Adapterkabels in das Loch im Gehäuse schrauben und den
    kleinen U.FL-Stecker vorsichtig auf den GNSS-Anschluss der Platine drücken.
-4. Deckel vorne einhaken, hinten absenken, verschrauben: Den Deckel hinten leicht angehoben
-   ansetzen, sodass die zwei Haken an der USB-C-Seite in die Taschen der Stirnwand greifen,
-   dann hinten absenken und mit den zwei M2-Schrauben verschließen.
+5. Deckel aufsetzen und mit den vier M3-x-8-Schrauben verschließen. Nicht zu fest anziehen.
 
 ### 6. Einbau im Fahrzeug
 
@@ -207,17 +209,20 @@ Auf der Seite von UAV BOS ist keine Änderung nötig.
 ### Mesh-Schlüssel (wichtig)
 
 Die Request-URL enthält den API-Schlüssel und wird über Funk übertragen. Sie ist mit einem festen
-Schlüssel verschlüsselt (AES-256), der in die Firmware eingebaut wird. **Jede Organisation muss einen
-eigenen Schlüssel erzeugen**, der Standardschlüssel steht öffentlich in diesem Projekt. Mit dem
-Standardschlüssel zeigt das Display "Standard-Schluessel!".
+Schlüssel verschlüsselt (AES-256), der beim Übersetzen in die Firmware eingebaut wird. **Jede
+Organisation muss einen eigenen Schlüssel erzeugen.** Ohne Schlüssel nutzt die Firmware einen
+Platzhalter; das Display zeigt dann "Standard-Schluessel!".
 
 1. Schlüssel erzeugen: `openssl rand -base64 32`
    (oder in PowerShell: `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`)
-2. In `platformio.ini` bei `-DMESH_PSK_B64=\"...\"` eintragen.
-3. Alle Tracker der Organisation mit derselben Firmware flashen. Tracker mit anderem Schlüssel oder
+2. Lokal: die Datei `.env.example` nach `.env` kopieren und `MESH_PSK_B64=...` eintragen.
+   `.env` wird nicht ins Repository übernommen. Alternativ die Umgebungsvariable `MESH_PSK_B64` setzen.
+3. Für automatische Releases: im GitHub-Repository unter **Settings → Secrets and variables → Actions**
+   ein Secret namens `MESH_PSK_B64` mit demselben Schlüssel anlegen.
+4. Alle Tracker der Organisation mit derselben Firmware flashen. Tracker mit anderem Schlüssel oder
    Kanalnamen (`-DMESH_CHANNEL_NAME`) verstehen sich nicht, leiten die Pakete aber trotzdem weiter.
 
-Den Schlüssel nicht in ein öffentliches Repository hochladen.
+Den Schlüssel nicht ins Repository schreiben.
 
 ### Kompatibilität mit Meshtastic
 
@@ -294,7 +299,9 @@ Setze ein AP-Passwort, wenn sich weitere Geräte das Fahrzeug-WLAN teilen.
 Teile: Unterteil, Deckel (kopfüber gedruckt) und zwei Stößel mit eingravierter Markierung:
 `plunger_user.stl` (Punkt) und `plunger_reset.stl` (X). Vorgerenderte STLs und Vorschaubilder liegen in `case/`.
 
-Außenmaße: 84,4 x 32,7 x 14,2 mm (mit GNSS-SMA-Loch), zuzüglich Befestigungslaschen.
+Außenmaße: 84,4 x 32,7 x 16,2 mm (mit GNSS-SMA-Loch), zuzüglich Befestigungslaschen. Die zwei
+Schraubsäulen an den vorderen Ecken stehen je etwa 4,3 mm nach vorne und zur Seite über
+(vorne 41,3 mm breit).
 
 ![Zusammenbau](case/assembly.png)
 
@@ -307,7 +314,8 @@ Die Standardwerte sind am Fastsaw-Board gemessen. Alle Positionen gelten ab der 
 | `usb_overhang`, `rear_overhang`  | USB-C steht 1,0 mm vorne über, GPS-Modul 1,0 mm hinten                   |
 | `stop_adjust`                    | 2,5: verschiebt die hinteren Anschläge Richtung USB-Ende (aus Testdruck) |
 | `holddown_x`                     | `pcb_l - 3.7`: Position der Niederhalter-Stifte im Deckel ab PCB-Vorderkante (aus Testdruck) |
-| `front_hook`                     | zwei 4 mm breite Haken am Deckel (vordere Ecken, USB-C-Seite) greifen in Taschen der Stirnwand; `hook_w`, `hook_len`, `hook_t`, `hook_nose` für die Maße |
+| `insert_hole`, `insert_depth`, `boss_d` | 4,0 mm Loch, 9 mm tief, Dom 8 mm für ruthex M3 x 5,7 Einschmelzgewinde; `screw_clear` 3,4 mm Durchgang im Deckel |
+| `front_boss_off`                 | 2,3: vordere Schraubsäulen sitzen diagonal so weit außerhalb der Innenecken (neben der Platine ist kein Platz) |
 | `top_clear`                      | 4,3: GPS-Modul (3,8, höchstes Bauteil oben) + Luft                       |
 | `bottom_clear`                   | 4,0: Stecker auf der Unterseite am USB-Ende (3,6) + Luft. Etwa 9 bei eingelöteten Stiftleisten |
 | `disp_x0`, `disp_w`, `disp_h`    | sichtbare Displayfläche: beginnt bei 10,7 mm (gemessen 11,7, nach Testdruck korrigiert), 23,2 x 12,3 mm, mittig in der Breite |
@@ -317,12 +325,13 @@ Die Standardwerte sind am Fastsaw-Board gemessen. Alle Positionen gelten ab der 
 | `plunger_bottom_trim`, `plunger_top` | 1,0 mm kürzer unten, 2,8 mm Überstand über dem Deckel (aus Testdruck) |
 | `usb_w`, `usb_h`, `usb_z`        | 8,8 x 3,2 mm USB-C, Mitte 1,6 mm über der Platinenoberseite              |
 | `gnss_sma`, `lora_sma`           | Löcher für SMA-Einbaubuchsen                                             |
-| `sma_min_in_h`                   | 11 mm Innenhöhe für eine SMA-Mutter. Mit SMA-Loch wird der Raum unter der Platine entsprechend größer |
+| `sma_min_in_h`                   | 13 mm Innenhöhe für eine SMA-Mutter. Mit SMA-Loch wird der Raum unter der Platine entsprechend größer |
+| `sma_z`, `sma_nut_d`             | SMA-Lochmitte 9,1 mm über dem Gehäuseboden, damit die Mutter (9,2 mm über Eck) nicht an die Befestigungslaschen stößt |
 | `front_supports`                 | kleine Stützen unter den vorderen Platinenecken. Deaktivieren, wenn sie mit dem Stecker auf der Unterseite kollidieren |
 | `mount_ears`                     | geschlitzte Laschen für M4-Schrauben oder Kabelbinder                    |
 
 Nicht gemessen, angenommen: Der USB-C-Anschluss sitzt mittig in der Breite und direkt auf der Platine.
-`gnss_sma = false` macht das Gehäuse 1 mm niedriger. Probier das aus, wenn das Onboard-GPS-Modul
+`gnss_sma = false` macht das Gehäuse 3 mm niedriger. Probier das aus, wenn das Onboard-GPS-Modul
 durch den Deckel einen guten Fix bekommt.
 
 Export:
@@ -336,12 +345,20 @@ openscad -o plunger_reset.stl -D 'part="plunger_reset"' case/tracker_case.scad
 
 `part="assembly"` zeigt alles zusammengebaut mit einem Dummy-Board.
 
-Zusammenbau: Die beiden Stößel in die Tastenlöcher des Deckels stecken, Board einlegen (USB-C in die Öffnung),
-SMA-Einbaubuchse montieren, Deckel vorne einhaken, hinten absenken und mit 2x M2 x 6 selbstschneidenden
-Schrauben verschließen. Ein 0,5 mm klares
+Zusammenbau: 4x ruthex M3 x 5,7 von oben in die Dome des Unterteils einschmelzen, die beiden Stößel in die
+Tastenlöcher des Deckels stecken, Board einlegen (USB-C in die Öffnung), SMA-Einbaubuchse montieren und den
+Deckel mit 4x M3 x 8 Zylinderkopfschrauben verschließen. Ein 0,5 mm klares
 PET-/Acrylfenster kann innen in die Vertiefung des Deckels geklebt werden.
 
 Druck in **PETG oder ASA**. PLA wird in einem in der Sonne geparkten Auto weich. 0,2 mm Schichthöhe, 3 Wände, keine Stützen.
+
+## Firmware-Release
+
+Ein Push auf den Branch `release` startet `.github/workflows/release-firmware.yml`. Die Action baut die
+Firmware mit dem Secret `MESH_PSK_B64` und legt ein GitHub Release an. Die Versionsnummer steht in
+`platformio.ini` bei `-DFW_VERSION`. Der Tag ist diese Version mit vorangestelltem `v`, aktuell
+`v1.0.1`. Zeigt der Tag schon auf einen anderen Commit, bricht der Lauf ab. Dann zuerst `FW_VERSION`
+erhöhen und den Branch `release` erneut pushen.
 
 ## Firmware anpassen
 
@@ -352,7 +369,8 @@ Druck in **PETG oder ASA**. PLA wird in einem in der Sonne geparkten Auto weich.
 | Genauigkeitsschätzung (UERE)      | `kUereMeters` in `src/gnss.cpp`                            |
 | Timeouts (WLAN, AP-Leerlauf, Taste) | Anfang von `src/main.cpp`                                |
 | TLS-Zertifikatsprüfung            | `-DUPLINK_VERIFY_TLS` in `platformio.ini` einkommentieren (ISRG Root X1, genutzt von api.beta.uav-bos.de) |
-| Mesh-Schlüssel, Kanalname         | `-DMESH_PSK_B64`, `-DMESH_CHANNEL_NAME` in `platformio.ini`  |
+| Mesh-Schlüssel                    | `MESH_PSK_B64` in `.env`, als Umgebungsvariable, oder als GitHub-Secret `MESH_PSK_B64` |
+| Mesh-Kanalname                    | `-DMESH_CHANNEL_NAME` in `platformio.ini`                    |
 | LoRa-Funkparameter, Airtime-Limit, Hop-Limit | Anfang von `src/mesh.cpp`                       |
 | LoRa-Nachrichtenformat            | `src/meshproto.cpp`                                        |
 | Weiterleitung, Alterslimit 60 s   | `src/gateway.cpp`                                          |

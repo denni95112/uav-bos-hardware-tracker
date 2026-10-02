@@ -62,7 +62,9 @@ cable_space = 14;     // free space behind the board for U.FL pigtails and SMA n
 gnss_sma = true;      // SMA bulkhead on the rear end for an external GNSS antenna
 lora_sma = false;     // extra SMA on the side wall (LoRa, unused by the firmware)
 sma_hole = 6.6;       // 1/4"-36 SMA thread
-sma_min_in_h = 11;    // inner height needed for an SMA bulkhead nut
+sma_min_in_h = 13;    // inner height needed for an SMA bulkhead nut at sma_z
+sma_z = 9.1;          // SMA hole centre above the case bottom (nut must clear the mounting ears)
+sma_nut_d = 9.2;      // SMA bulkhead nut across corners
 
 /* [Case] */
 wall = 2.0;
@@ -73,19 +75,14 @@ lip_h = 2.0;          // locating lip of the lid
 lip_t = 1.2;
 fit = 0.25;           // lid lip to wall clearance
 corner_r = 2.0;
-screw_hole = 1.8;     // M2 self-tapping into the bosses
-screw_clear = 2.4;
-screw_head = 4.2;
-boss_d = 5.6;
+insert_hole = 4.0;    // ruthex M3 x 5.7 heat-set insert
+insert_depth = 9;     // insert 5.7 + room for the screw tip (M3 x 8)
+boss_d = 8;
+screw_clear = 3.4;    // M3 through the lid
+front_boss_off = 2.3; // front boss centres diagonally outside the inner corners (>= 1.2 wall to the cavity)
 front_supports = true; // small supports under the front PCB corners (check against the underside connector)
 holddown = true;      // pins in the lid pressing on the rear PCB corners
 holddown_x = pcb_l - 3.7; // pin centre from PCB front (measured on a test print)
-front_hook = true;    // lid hooks into the front wall (USB end); rear is screwed
-hook_w = 4;
-hook_len = 3.0;       // tab length below the lid underside
-hook_t = 1.2;
-hook_nose = 0.8;      // nose depth towards the wall
-hook_nose_h = 1.0;
 mount_ears = true;    // screw / cable-tie ears on the short ends
 ear_len = 10;
 ear_t = 3;
@@ -104,6 +101,10 @@ in_h = bottom_eff + pcb_t + top_clear;
 out_l = in_l + 2 * wall;
 out_w = in_w + 2 * wall;
 base_h = floor_t + in_h;
+if (has_sma) {
+  assert(sma_z + sma_nut_d / 2 <= base_h, "SMA nut hits the lid, raise sma_min_in_h");
+  assert(!mount_ears || sma_z - sma_nut_d / 2 >= ear_t, "SMA nut hits the mounting ears, raise sma_z");
+}
 
 // PCB origin (corner at the USB end, bottom face)
 px = wall + usb_overhang + clr;
@@ -115,17 +116,15 @@ disp_cx = disp_x0 + disp_w / 2;
 frame_cx = frame_x0 + frame_w / 2;
 gps_x0 = pcb_l + rear_overhang - gps_w;
 
-// bosses sink 0.5 mm into the walls so they fuse with them
+// Rear bosses sit in the cable space and sink 0.5 mm into the walls so they fuse with them.
+// There is no room next to the board at the USB end, so the front bosses are columns outside the corners.
 boss_x = out_l - wall - boss_d / 2 + 0.5;
 boss_ys = [wall + boss_d / 2 - 0.5, out_w - wall - boss_d / 2 + 0.5];
+front_bosses = [[wall - front_boss_off, wall - front_boss_off],
+                [wall - front_boss_off, out_w - wall + front_boss_off]];
+screw_pos = concat(front_bosses, [for (y = boss_ys) [boss_x, y]]);
 
 vent_h = top_clear - lip_h - 0.5;
-
-// Hooks sit in the front corners: the USB opening's top edge is too close to the wall top,
-// and the button plunger flanges occupy the space next to it.
-hook_board_ys = [hook_w / 2 + 0.2, pcb_w - hook_w / 2 - 0.2];
-hook_pocket_depth = 1.0;
-hook_pocket_clr = 0.2;
 
 module rounded_box(l, w, h, r) {
   hull() for (x = [r, l - r], y = [r, w - r]) translate([x, y, 0]) cylinder(r = r, h = h);
@@ -155,6 +154,7 @@ module base() {
           cube([1.5 + stop_adjust, 4, bottom_eff + pcb_t + 1.5]);
       // screw bosses
       for (y = boss_ys) translate([boss_x, y, floor_t - eps]) cylinder(d = boss_d, h = in_h + eps);
+      for (p = front_bosses) translate([p[0], p[1], 0]) cylinder(d = boss_d, h = base_h);
       if (mount_ears) ears();
     }
     // USB-C opening
@@ -163,26 +163,16 @@ module base() {
         rrect(usb_w + 2 * usb_clear, usb_h + 2 * usb_clear, wall + 1, 1.2);
     // GNSS SMA on the rear end
     if (gnss_sma)
-      translate([out_l - wall - eps, out_w / 2, floor_t + in_h / 2])
+      translate([out_l - wall - eps, out_w / 2, sma_z])
         rotate([0, 90, 0]) cylinder(d = sma_hole, h = wall + 1);
     // optional LoRa SMA on the side wall
     if (lora_sma)
-      translate([px + pcb_l + rear_overhang + 6, out_w - wall - eps, floor_t + in_h / 2])
+      translate([px + pcb_l + rear_overhang + 6, out_w - wall - eps, sma_z])
         rotate([-90, 0, 0]) cylinder(d = sma_hole, h = wall + 1);
-    // screw holes
-    for (y = boss_ys) translate([boss_x, y, floor_t + 1]) cylinder(d = screw_hole, h = in_h);
+    // holes for the heat-set inserts
+    for (p = screw_pos) translate([p[0], p[1], base_h - insert_depth]) cylinder(d = insert_hole, h = insert_depth + eps);
     if (vents && vent_h >= 1) vent_slots();
-    if (front_hook) hook_pockets();
   }
-}
-
-// pockets in the inner face of the front wall for the lid hook noses
-module hook_pockets() {
-  z0 = base_h - hook_len - hook_pocket_clr;
-  h = hook_nose_h + 2 * hook_pocket_clr;
-  for (y = hook_board_ys)
-    translate([wall - hook_pocket_depth, py + y - (hook_w + 0.6) / 2, z0])
-      cube([hook_pocket_depth + eps, hook_w + 0.6, h]);
 }
 
 module ears() {
@@ -217,14 +207,13 @@ module lid() {
   difference() {
     union() {
       rounded_box(out_l, out_w, lid_t, corner_r);
+      for (p = front_bosses) translate([p[0], out_w - p[1], 0]) cylinder(d = boss_d, h = lid_t);
       // locating lips along the long walls (inside the base)
       for (y = [wall + fit, out_w - wall - fit - lip_t])
         translate([px, y, lid_t - eps]) cube([pcb_l - 6, lip_t, lip_h]);
       if (holddown)
         for (y = [2, pcb_w - 2])
           translate([px + holddown_x, lid_y(y), lid_t - eps]) cylinder(d = 2.5, h = top_clear);
-      if (front_hook)
-        for (y = hook_board_ys) translate([0, lid_y(y) - hook_w / 2, 0]) hook_tab();
     }
     // display window
     translate([px + disp_cx, lid_y(disp_cy), -eps])
@@ -239,24 +228,8 @@ module lid() {
       translate([px + btn_x, lid_y(reset_btn_y), -eps]) cylinder(d = button_hole, h = lid_t + 1);
     else if (reset_mode == "pinhole")
       translate([px + btn_x, lid_y(reset_btn_y), -eps]) cylinder(d = pinhole_d, h = lid_t + 1, $fn = 24);
-    // screw holes with counterbore on the outside
-    for (y = boss_ys) {
-      translate([boss_x, out_w - y, -eps]) cylinder(d = screw_clear, h = lid_t + 1);
-      translate([boss_x, out_w - y, -eps]) cylinder(d = screw_head, h = 0.8);
-    }
-  }
-}
-
-// Tab hanging down inside the front wall, nose at the tip pointing into the wall pocket.
-// The nose face towards the lid is flat so it holds when the lid is pulled up; the tip is
-// chamfered as a lead-in. Close the case by hooking the front in with the rear tilted up.
-module hook_tab() {
-  x0 = wall + fit;
-  z_tip = lid_t + hook_len;
-  translate([x0, 0, lid_t - eps]) cube([hook_t, hook_w, hook_len + eps]);
-  hull() {
-    translate([x0 - hook_nose, 0, z_tip - hook_nose_h]) cube([hook_nose + eps, hook_w, hook_nose_h - 0.4]);
-    translate([x0 - eps, 0, z_tip - hook_nose_h]) cube([eps, hook_w, hook_nose_h]);
+    // screw holes; the lid is too thin for a counterbore, the heads sit on top
+    for (p = screw_pos) translate([p[0], out_w - p[1], -eps]) cylinder(d = screw_clear, h = lid_t + 1);
   }
 }
 

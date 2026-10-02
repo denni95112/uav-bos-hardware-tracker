@@ -478,7 +478,7 @@ void begin() {
   }
   keyLen = olen;
   chanHash = channelHash(MESH_CHANNEL_NAME, key, keyLen);
-  if (st.placeholderKey) Serial.println("[mesh] WARNING: default mesh key in use, set MESH_PSK_B64 in platformio.ini");
+  if (st.placeholderKey) Serial.println("[mesh] WARNING: default mesh key in use, set MESH_PSK_B64");
 
   loraSpi.begin(PIN_LORA_SCK, PIN_LORA_MISO, PIN_LORA_MOSI, PIN_LORA_CS);
   radio = new SX1262(new Module(PIN_LORA_CS, PIN_LORA_DIO1, PIN_LORA_RST, PIN_LORA_BUSY, loraSpi));
