@@ -31,6 +31,9 @@ Code schreiben. Plane für den ersten Aufbau etwa 1 bis 2 Stunden ein.
 | Gehäuse aus dem 3D-Drucker | Schutz der Platine | Optional, siehe [Gehäuse drucken lassen](#5-gehäuse-optional) |
 | 4x Zylinderkopfschraube M3 x 8 ([Amazon: B0B3MGZ7T2](https://www.amazon.de/dp/B0B3MGZ7T2)) | Gehäuse verschließen | Nur mit Gehäuse |
 | 4x Einschmelzgewinde ruthex M3 x 5,7 ([Amazon: B08BCRZZS3](https://www.amazon.de/dp/B08BCRZZS3)) | Gewinde für die Deckelschrauben, werden mit einem Lötkolben in das Unterteil eingeschmolzen | Nur mit Gehäuse |
+| **868-MHz-LoRa-Antenne mit Magnetfuß** ([Amazon: B09Y8NF2P7](https://www.amazon.de/dp/B09Y8NF2P7)) | Empfohlen für das Führungsfahrzeug im Gateway-Betrieb | Yilianduo, 2 dBi, Glasfaserstab, Magnetfuß mit 3-m-Kabel (RP-SMA-Stecker) |
+| **18650-Batteriehalter** ([Amazon: B0GWJ7VMMB](https://www.amazon.de/dp/B0GWJ7VMMB)) | Für den tragbaren Tracker | Hugcows, Einzelhalter mit Litzen, für geschützte Zellen. Siehe [Akku-Version](#akku-version-für-personen-casetracker_case_batteryscad) |
+| **Schiebeschalter** ([Amazon: B09TVDZ8P2](https://www.amazon.de/dp/B09TVDZ8P2)) | Für den tragbaren Tracker | RUNCCI-YUN, 3-polig, 2 Stellungen. Gehäuse mit `sw_type = "RUNCCI"`. Siehe [Akku-Version](#akku-version-für-personen-casetracker_case_batteryscad) |
 
 Außerdem brauchst du:
 
@@ -192,7 +195,10 @@ Betriebsbildschirm zusätzlich die weitergeleiteten Mesh-Positionen (OK/Fehler) 
 
 Das Board hat einen LoRa-Funkchip (SX1262, 868 MHz). Damit bilden die Tracker ein Funknetz, das mit
 [Meshtastic](https://meshtastic.org/) kompatibel ist. Fahrzeuge ohne Internet schicken ihre Position über
-das Mesh zu einem Tracker, der Internet hat, und der leitet sie an UAV BOS weiter.
+das Mesh zu einem Tracker, der Internet hat, und der leitet sie an UAV BOS weiter. Zum reinen
+Weiterleiten, ohne eigene Position, gibt es den
+[UAV-BOS Mesh-Repeater](https://github.com/denni95112/uav-bos-mesh-repeater)
+(Heltec WiFi LoRa 32 V2, kein GPS). Er spricht dasselbe Protokoll und braucht denselben Mesh-Schlüssel.
 
 | Betriebsart  | WLAN | LoRa | Was passiert                                                                  |
 |--------------|------|------|-------------------------------------------------------------------------------|
