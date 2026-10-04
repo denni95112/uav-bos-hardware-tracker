@@ -44,10 +44,11 @@ a{color:#b71c1c}code{word-break:break-all}
 <main>
 <section><h2>Steuerung</h2>
 <label>Betriebsart (sofort, ohne Neustart)</label>
-<div class="row" id="modes"><button type="button" class="sec" data-m="0" onclick="setMode(0)">Nur WLAN</button>
+<div class="row" id="modes" style="flex-wrap:wrap"><button type="button" class="sec" data-m="0" onclick="setMode(0)">Nur WLAN</button>
 <button type="button" class="sec" data-m="1" onclick="setMode(1)">Gateway</button>
+<button type="button" class="sec" data-m="3" onclick="setMode(3)">Offline</button>
 <button type="button" class="sec" data-m="2" onclick="setMode(2)">Nur LoRa</button></div>
-<p class="hint">Nur WLAN sendet die Position ins Fahrzeug-WLAN. Gateway macht dasselbe und leitet zusaetzlich Positionen anderer Tracker aus dem Funknetz ans Internet. Nur LoRa schaltet das WLAN aus, die Position geht nur ueber Funk.</p>
+<p class="hint">Nur WLAN sendet die Position ins Fahrzeug-WLAN. Gateway macht dasselbe und leitet zusaetzlich Positionen anderer Tracker aus dem Funknetz ans Internet. Offline haelt das WLAN nur fuer diese Seite: keine Positionsmeldung an UAV BOS und keine Update-Pruefung, die Position geht ueber LoRa. Nur LoRa schaltet das WLAN aus, die Position geht nur ueber Funk.</p>
 <label>Display-Beleuchtung</label>
 <div class="row"><button type="button" class="sec" id="blbtn" onclick="toggleBl()">-</button></div>
 <p class="hint">Schaltet nur die Hintergrundbeleuchtung. Der Tracker sendet weiter. Die Taste 3 s halten macht dasselbe.</p>
@@ -72,7 +73,7 @@ a{color:#b71c1c}code{word-break:break-all}
 <p class="hint">Abstand der Positionsmeldungen ueber WLAN, 1 bis 3600 Sekunden.</p>
 <label>Betriebsart</label>
 <select name="mode" id="mode"><option value="0">Nur WLAN</option><option value="1">Gateway (WLAN + LoRa-Mesh)</option>
-<option value="2">Nur LoRa (WLAN aus)</option></select>
+<option value="3">Offline (WLAN an, kein Uplink)</option><option value="2">Nur LoRa (WLAN aus)</option></select>
 <p class="hint">Gilt nach dem Speichern und bleibt nach einem Neustart erhalten. Ein kurzer Tastendruck schaltet im Betrieb dasselbe um.</p>
 <label>LoRa-Sendeintervall (Sekunden, min. 15)</label><input name="lorainterval" id="lorainterval" type="number" min="15" max="3600" required>
 <p class="hint">Abstand der Positionen ueber Funk. Bei vielen Trackern hoeher setzen, etwa 10 mal die Anzahl der Tracker in Sekunden. Bei hoher Sendezeit verlaengert der Tracker das Intervall selbst.</p>
@@ -156,10 +157,10 @@ async function status(){
  ['Position',g.age>=0?g.lat.toFixed(6)+', '+g.lon.toFixed(6):'-'],
  ['Hoehe / Geschw.',g.alt.toFixed(0)+' m / '+(g.speed*3.6).toFixed(0)+' km/h'],
  ['Kurs / Genauigkeit',g.heading.toFixed(0)+'&deg; / '+g.acc.toFixed(1)+' m'+(g.gst?' (GST)':' (HDOP)')],
- ['Letztes Senden',up.ago<0?'-':'vor '+up.ago+' s, <span class="'+(sendOk?'ok':'err')+'">'+up.code+'</span>'],
- ['Gesendet / Fehler',up.sent+' / '+up.fail]];
- if(up.error)r.push(['Fehler','<code>'+esc(up.error)+'</code>']);
- if(up.payload)r.push(['Letzte Daten','<code>'+esc(up.payload)+'</code>']);
+ ['Letztes Senden',s.modeId==3?'aus (keine Meldung an UAV BOS, kein Update)':(up.ago<0?'-':'vor '+up.ago+' s, <span class="'+(sendOk?'ok':'err')+'">'+up.code+'</span>')]];
+ if(s.modeId!=3)r.push(['Gesendet / Fehler',up.sent+' / '+up.fail]);
+ if(s.modeId!=3&&up.error)r.push(['Fehler','<code>'+esc(up.error)+'</code>']);
+ if(s.modeId!=3&&up.payload)r.push(['Letzte Daten','<code>'+esc(up.payload)+'</code>']);
  if(m.error)r.push(['LoRa','<span class="err">'+esc(m.error)+'</span>']);
  $('st').innerHTML=rows(r);
  showCtl(s.modeId,s.backlight);
@@ -472,7 +473,7 @@ void handleSave() {
   TrackerConfig next = *cfgRef;
 
   long mode = server.hasArg("mode") ? server.arg("mode").toInt() : (long)cfgRef->mode;
-  next.mode = (TrackerMode)constrain(mode, (long)TrackerMode::WifiOnly, (long)TrackerMode::LoraOnly);
+  next.mode = (TrackerMode)constrain(mode, (long)TrackerMode::WifiOnly, (long)TrackerMode::Offline);
 
   String ssid = server.arg("ssid");
   ssid.trim();
@@ -548,7 +549,7 @@ void handleSave() {
 void handleMode() {
   touch();
   long m = server.hasArg("mode") ? server.arg("mode").toInt() : -1;
-  if (m < (long)TrackerMode::WifiOnly || m > (long)TrackerMode::LoraOnly) {
+  if (m < (long)TrackerMode::WifiOnly || m > (long)TrackerMode::Offline) {
     server.send(400, "text/plain", "Ungueltige Betriebsart");
     return;
   }

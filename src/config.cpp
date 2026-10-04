@@ -59,7 +59,7 @@ void load(TrackerConfig &cfg) {
 
   cfg.intervalSec = constrain(cfg.intervalSec, kMinIntervalSec, kMaxIntervalSec);
   cfg.loraIntervalSec = constrain(cfg.loraIntervalSec, kMinLoraIntervalSec, kMaxLoraIntervalSec);
-  cfg.mode = mode <= (uint8_t)TrackerMode::LoraOnly ? (TrackerMode)mode : TrackerMode::WifiOnly;
+  cfg.mode = mode <= (uint8_t)TrackerMode::Offline ? (TrackerMode)mode : TrackerMode::WifiOnly;
 }
 
 void save(const TrackerConfig &cfg) {
@@ -110,7 +110,8 @@ void clear() {
 TrackerMode nextMode(TrackerMode mode) {
   switch (mode) {
   case TrackerMode::WifiOnly: return TrackerMode::Gateway;
-  case TrackerMode::Gateway: return TrackerMode::LoraOnly;
+  case TrackerMode::Gateway: return TrackerMode::Offline;
+  case TrackerMode::Offline: return TrackerMode::LoraOnly;
   default: return TrackerMode::WifiOnly;
   }
 }
@@ -118,6 +119,7 @@ TrackerMode nextMode(TrackerMode mode) {
 const char *modeName(TrackerMode mode) {
   switch (mode) {
   case TrackerMode::Gateway: return "Gateway";
+  case TrackerMode::Offline: return "Offline";
   case TrackerMode::LoraOnly: return "Nur LoRa";
   default: return "Nur WLAN";
   }
@@ -126,6 +128,7 @@ const char *modeName(TrackerMode mode) {
 const char *modeShort(TrackerMode mode) {
   switch (mode) {
   case TrackerMode::Gateway: return "GW";
+  case TrackerMode::Offline: return "Off";
   case TrackerMode::LoraOnly: return "LoRa";
   default: return "WLAN";
   }

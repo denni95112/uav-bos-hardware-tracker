@@ -86,7 +86,7 @@ Wenn alles geklappt hat, zeigt das Display das UAV-BOS-Logo und danach den Einri
    - **Request-URL** von UAV BOS, z. B.
      `https://gps.beta.uav-bos.de/telemetry/objects/<Fahrzeug-Schlüssel>/<API-Schlüssel>`
    - **Sendeintervall**: 5 Sekunden sind ein guter Wert.
-   - **Betriebsart**: "Nur WLAN" wie bisher, "Gateway" oder "Nur LoRa" für das Funk-Mesh (siehe
+   - **Betriebsart**: "Nur WLAN" wie bisher, "Gateway", "Offline" oder "Nur LoRa" für das Funk-Mesh (siehe
      [LoRa-Mesh / Betriebsarten](#lora-mesh--betriebsarten)). Bei "Nur LoRa" darf die SSID leer bleiben.
    - **AP-Passwort** (empfohlen, mind. 8 Zeichen). Schützt das Einrichtungs-WLAN und die
      Einstellungsseite (Benutzername `admin`).
@@ -128,7 +128,7 @@ Zusammenbau:
 
 ### Bedienung im Alltag
 
-- **Taste PRG kurz drücken**: Betriebsart wechseln (Nur WLAN → Gateway → Nur LoRa, siehe
+- **Taste PRG kurz drücken**: Betriebsart wechseln (Nur WLAN → Gateway → Offline → Nur LoRa, siehe
   [LoRa-Mesh / Betriebsarten](#lora-mesh--betriebsarten)). Jeder weitere Druck springt eine Stufe
   weiter, 3 Sekunden nach dem letzten Druck wird die Auswahl übernommen.
 - **Taste PRG 3 Sekunden halten**: Display an/aus.
@@ -175,10 +175,11 @@ Zusammenbau:
 | Verbinden    | SSID, verstrichene Zeit                                                 |
 | Konfig-AP    | AP-Name, AP-Passwort, `http://192.168.4.1`, verbundene Geräte           |
 | Betrieb      | WLAN-RSSI, GPS-Status/Satelliten/HDOP, Position, Geschwindigkeit, Kurs, Höhe, Genauigkeit, letzte Sendung (Alter + HTTP-Code, grün/rot), Sendezähler, IP |
+| Offline      | WLAN-RSSI, GPS wie oben, letzte LoRa-Sendung, gehörte Tracker, Airtime, IP der Webseite |
 | Mode-Auswahl | gewählte und aktuelle Betriebsart, Countdown bis zur Übernahme          |
 | Nur LoRa     | GPS wie oben, letzte LoRa-Sendung, gehörte Tracker, Weiterleitungen, Airtime, Knoten-ID |
 
-Oben rechts im Kopf steht immer die Betriebsart (`WLAN`, `GW`, `LoRa`). Im Gateway-Betrieb zeigt der
+Oben rechts im Kopf steht immer die Betriebsart (`WLAN`, `GW`, `Off`, `LoRa`). Im Gateway-Betrieb zeigt der
 Betriebsbildschirm zusätzlich die weitergeleiteten Mesh-Positionen (OK/Fehler) und die Zahl der gehörten Tracker.
 
 ### Taste (PRG)
@@ -197,6 +198,7 @@ das Mesh zu einem Tracker, der Internet hat, und der leitet sie an UAV BOS weite
 |--------------|------|------|-------------------------------------------------------------------------------|
 | Nur WLAN     | an   | aus  | Wie bisher: Position per WLAN an UAV BOS                                      |
 | Gateway      | an   | an   | Eigene Position per WLAN. Empfängt Positionen anderer Tracker über LoRa und sendet sie an UAV BOS. Leitet Mesh-Pakete weiter. Ohne WLAN wird die eigene Position über LoRa geschickt |
+| Offline      | an   | an   | WLAN nur für die Weboberfläche. Keine Positionsmeldung an UAV BOS und keine Update-Prüfung. Eigene Position über LoRa, Pakete anderer Tracker werden weitergeleitet |
 | Nur LoRa     | aus  | an   | Eigene Position über LoRa, Pakete anderer Tracker werden weitergeleitet. Braucht nur die Request-URL, kein WLAN |
 
 Jedes Board im Gateway-Betrieb, das Internet hat, kann als Gateway dienen. Es braucht also keinen
@@ -205,7 +207,7 @@ Einstellungsseite wählen.
 
 So funktioniert es:
 
-1. Ein Tracker im Betrieb "Nur LoRa" sendet beim Start und danach alle 10 Minuten seine Request-URL
+1. Ein Tracker im Betrieb "Nur LoRa" oder "Offline" sendet beim Start und danach alle 10 Minuten seine Request-URL
    verschlüsselt ins Mesh. Gateways speichern sie (auch über einen Neustart hinweg).
 2. Die Position sendet er alle *n* Sekunden (Einstellung "LoRa-Sendeintervall", Standard 30 s, min. 15 s).
    Nach mehr als 100 m Strecke oder 30° Kursänderung schon früher, im Stand höchstens alle 2 Minuten.
@@ -364,7 +366,7 @@ Funkchip beschädigen. Das Gehäuse hat mit `lora_sma` ein Loch für eine SMA-Ei
 Im Betrieb ist dieselbe Status-/Einstellungsseite unter der IP erreichbar, die auf dem Display steht.
 
 Oben auf der Seite ("Steuerung") lassen sich ohne Neustart die Betriebsart umschalten und das Display
-ein- und ausschalten. Der Wechsel zwischen "Nur WLAN" und "Gateway" hält die WLAN-Verbindung. Bei "Nur LoRa"
+ein- und ausschalten. Der Wechsel zwischen "Nur WLAN", "Gateway" und "Offline" hält die WLAN-Verbindung. Bei "Nur LoRa"
 geht das WLAN aus, die Seite ist dann nur noch über den Config-AP erreichbar (Taste 10 s halten).
 Ist LoRa aktiv, zeigt der Abschnitt "LoRa-Mesh":
 
@@ -592,13 +594,13 @@ erhöhen und den Branch `release` erneut pushen.
 
 ### Automatisches Update (OTA)
 
-Nach dem Einschalten prüft der Tracker in den WLAN-Betriebsarten (WLAN, Gateway), sobald er verbunden
+Nach dem Einschalten prüft der Tracker in den Betriebsarten Nur WLAN und Gateway, sobald er verbunden
 ist, ob es ein neueres Release gibt. Dazu lädt er `version.txt` aus dem neuesten Release
 (`releases/latest/download/version.txt`). Ist die Version höher als die eigene, lädt er
 `uav-bos-tracker-<version>.bin`, zeigt den Fortschritt im Display, installiert die Firmware und startet
 neu. Schlägt der Download fehl, bleibt die alte Firmware aktiv. Die Prüfung läuft nur in den ersten
 10 Minuten nach dem Start (bei Netzfehlern jede Minute erneut), damit der Tracker nie mitten im Einsatz
-neu startet. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Root-Zertifikaten
+neu startet. Im Betrieb Offline bleibt das WLAN an, es wird aber nicht auf Updates geprüft. Die Verbindung zu GitHub läuft über TLS mit fest hinterlegten Root-Zertifikaten
 (`src/certs.cpp`).
 
 Updates kommen aus dem Repository in `OTA_REPO` (Standard `denni95112/uav-bos-hardware-tracker`). Auch

@@ -24,6 +24,8 @@ void showAp(const String &apSsid, const String &apPass, uint8_t clients);
 void showRunning(const GnssFix &fix, const UplinkStatus &up, int rssi, const String &ip, const MeshStats *mesh,
                  const GatewayStats *gw);
 void showLoraOnly(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSec);
+// Offline: LoRa send status like Nur LoRa, plus WLAN RSSI and the page IP.
+void showOffline(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSec, int rssi, const String &ip);
 void showModeSelect(TrackerMode selected, TrackerMode current, uint32_t remainingMs);
 
 } // namespace display

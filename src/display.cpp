@@ -259,6 +259,37 @@ void showLoraOnly(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSe
   push();
 }
 
+void showOffline(const GnssFix &fix, const MeshStats &mesh, uint16_t intervalSec, int rssi, const String &ip) {
+  char buf[48];
+  canvas.fillScreen(C_BG);
+  snprintf(buf, sizeof(buf), "UAV-BOS  WLAN %ddBm", rssi);
+  header(buf, C_HEAD);
+  gpsBlock(fix);
+
+  if (!mesh.ok) {
+    line(52, C_ERR, mesh.error);
+  } else if (mesh.lastTxMs == 0) {
+    line(52, C_DIM, "LoRa: noch nicht gesendet");
+  } else {
+    char age[12];
+    uint32_t effectiveSec = (uint32_t)intervalSec * mesh.intervalScale;
+    uint32_t okMs = 2000UL * max<uint32_t>(effectiveSec, 120UL * mesh.intervalScale);
+    formatAge(age, sizeof(age), millis() - mesh.lastTxMs);
+    snprintf(buf, sizeof(buf), "LoRa: vor %s (alle %lus)", age, (unsigned long)effectiveSec);
+    line(52, millis() - mesh.lastTxMs < okMs ? C_OK : C_WARN, buf);
+  }
+
+  if (mesh.placeholderKey) {
+    line(63, C_WARN, "Standard-Schluessel!");
+  } else {
+    snprintf(buf, sizeof(buf), "%u Kn  Rel %lu  Air %.1f%%", mesh.heardNodes, (unsigned long)mesh.relayCount,
+             mesh.airtimePercent);
+    line(63, mesh.txBlocked ? C_WARN : C_DIM, buf);
+  }
+  line(72, C_DIM, ip.c_str());
+  push();
+}
+
 void showModeSelect(TrackerMode selected, TrackerMode current, uint32_t remainingMs) {
   char buf[40];
   canvas.fillScreen(C_BG);

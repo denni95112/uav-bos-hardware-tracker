@@ -111,7 +111,7 @@ void switchMode(TrackerMode mode) {
   cfg.mode = mode;
   config::saveMode(mode);
   if (wifiBefore && cfg.usesWifi()) {
-    // WLAN <-> Gateway only changes the radio, the WiFi connection (and the web page) stays up.
+    // Nur WLAN, Gateway and Offline keep WiFi; only the radio changes and the web page stays up.
     Serial.printf("[main] mode %s\n", config::modeName(cfg.mode));
     display::setMode(cfg.mode);
     if (cfg.usesLora()) mesh::begin(cfg.mesh, cfg.meshKey);
@@ -268,6 +268,8 @@ void loopRunning(const GnssFix &fix) {
     return;
   }
 
+  if (!cfg.usesUplink()) return;
+
   checkOta();
 
   uint32_t now = millis();
@@ -293,8 +295,8 @@ void loopMesh(const GnssFix &fix) {
   const UplinkStatus *last = lastUplinkAttempt();
   bool uplinkFailing = last && last->consecutiveFails > 0;
   bool uplinkProven = last && !uplinkFailing && millis() - last->lastSuccessMs < kUplinkFreshMs;
-  // A gateway without working internet falls back to sending its own position over LoRa.
-  bool sendOwn = cfg.mode == TrackerMode::LoraOnly || !wifiUp || uplinkFailing;
+  // Offline and Nur LoRa always send over LoRa. A gateway without working internet does the same.
+  bool sendOwn = !cfg.usesUplink() || !wifiUp || uplinkFailing;
   mesh::setUplinkOnline(cfg.mode == TrackerMode::Gateway && wifiUp && uplinkProven);
   mesh::loop(fix, cfg.url, cfg.loraIntervalSec, sendOwn);
   gateway::loop(cfg.mode == TrackerMode::Gateway && wifiUp, fix);
@@ -320,9 +322,13 @@ void updateDisplay(const GnssFix &fix) {
     display::showAp(apSsid, cfg.apPass.length() >= 8 ? cfg.apPass : String(""), portal::apClients());
     break;
   case State::Running:
-    display::showRunning(fix, uplink::status(), WiFi.RSSI(), WiFi.localIP().toString(),
-                         cfg.mode == TrackerMode::Gateway ? &ms : nullptr,
-                         cfg.mode == TrackerMode::Gateway ? &gateway::stats() : nullptr);
+    if (cfg.mode == TrackerMode::Offline) {
+      display::showOffline(fix, ms, cfg.loraIntervalSec, WiFi.RSSI(), WiFi.localIP().toString());
+    } else {
+      display::showRunning(fix, uplink::status(), WiFi.RSSI(), WiFi.localIP().toString(),
+                           cfg.mode == TrackerMode::Gateway ? &ms : nullptr,
+                           cfg.mode == TrackerMode::Gateway ? &gateway::stats() : nullptr);
+    }
     break;
   case State::LoraOnly:
     display::showLoraOnly(fix, ms, cfg.loraIntervalSec);

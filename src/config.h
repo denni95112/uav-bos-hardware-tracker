@@ -6,6 +6,7 @@ enum class TrackerMode : uint8_t {
   WifiOnly = 0, // WiFi uplink, LoRa radio asleep
   Gateway = 1,  // WiFi uplink + LoRa mesh node that forwards client positions
   LoraOnly = 2, // WiFi off, own position goes through the LoRa mesh
+  Offline = 3,  // WiFi on for the web UI only; own position goes through the LoRa mesh
 };
 
 // Meshtastic modem presets that fit the EU_868 sub-band 869.4-869.65 MHz.
@@ -50,6 +51,8 @@ struct TrackerConfig {
   bool hasUrl() const { return url.length() > 0; }
   bool usesWifi() const { return mode != TrackerMode::LoraOnly; }
   bool usesLora() const { return mode != TrackerMode::WifiOnly; }
+  // Position POSTs and firmware update checks. Offline keeps WiFi for the page only.
+  bool usesUplink() const { return mode == TrackerMode::WifiOnly || mode == TrackerMode::Gateway; }
 };
 
 namespace config {
