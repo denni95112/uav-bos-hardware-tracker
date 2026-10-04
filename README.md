@@ -408,7 +408,7 @@ Die Standardwerte sind am Fastsaw-Board gemessen. Alle Positionen gelten ab der 
 |----------------------------------|--------------------------------------------------------------------------|
 | `pcb_l`, `pcb_w`, `pcb_t`        | 63,6 x 27,9 x 1,7 mm unbestückte Platine                                 |
 | `usb_overhang`, `rear_overhang`  | USB-C steht 1,0 mm vorne über, GPS-Modul 1,0 mm hinten                   |
-| `stop_adjust`                    | 2,5: verschiebt die hinteren Anschläge Richtung USB-Ende (aus Testdruck) |
+| `stop_adjust`                    | 2,0: verschiebt die hinteren Anschläge Richtung USB-Ende. War 2,5 aus dem ersten Testdruck; die Platine ging erst nach etwa 0,5 mm Abfeilen der Anschläge ganz rein |
 | `holddown_x`                     | `pcb_l - 3.7`: Position der Niederhalter-Stifte im Deckel ab PCB-Vorderkante (aus Testdruck) |
 | `insert_hole`, `insert_depth`, `boss_d` | 4,0 mm Loch, 9 mm tief, Dom 8 mm für ruthex M3 x 5,7 Einschmelzgewinde; `screw_clear` 3,4 mm Durchgang im Deckel |
 | `front_boss_off`                 | 2,3: vordere Schraubsäulen sitzen diagonal so weit außerhalb der Innenecken (neben der Platine ist kein Platz) |

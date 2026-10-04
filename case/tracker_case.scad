@@ -21,7 +21,7 @@ top_clear = 4.3;      // tallest top part (GPS module 3.8) + margin
 bottom_clear = 4.0;   // underside: connector at the USB end 3.6 + margin (rest of the underside is 1.8)
 usb_overhang = 1.0;   // USB-C shell past the front PCB edge
 rear_overhang = 1.0;  // GPS module past the rear PCB edge
-stop_adjust = 2.5;    // moves the rear board stops towards the USB end (measured on a test print)
+stop_adjust = 2.0;    // moves the rear board stops towards the USB end. Was 2.5; the board only seated after filing the stops about 0.5 mm
 
 /* [Display] */
 disp_x0 = 10.7;       // visible area starts here (from PCB front; measured 11.7, corrected after a test print)

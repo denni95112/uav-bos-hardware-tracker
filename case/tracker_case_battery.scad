@@ -25,7 +25,7 @@ top_clear = 4.3;      // tallest top part (GPS module 3.8) + margin
 bottom_clear = 5.0;   // underside connector 3.6 + battery plug and leads
 usb_overhang = 1.0;
 rear_overhang = 1.0;
-stop_adjust = 2.5;    // moves the rear board stops towards the USB end (measured on a test print)
+stop_adjust = 2.0;    // moves the rear board stops towards the USB end. Was 2.5; the board only seated after filing the stops about 0.5 mm
 
 /* [Display] */
 disp_x0 = 10.7;
