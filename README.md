@@ -508,12 +508,12 @@ Der Ladestrom des Boards beträgt 500 mA und fließt über den Schalter.
 
 Ausweichlösung aus dem Amazon-Sortiment:
 
-- **Schalter RUNCCI-YUN (B09TVDZ8P2)**: mit `sw_type = "RUNCCI"` vorbereitet. Laut Angebot 0,5 A bei 50 V DC
-  (bzw. 2 A bei 125 V AC), Gehäuse 12,7 x 6,6 mm, Hebel 5 mm. Bei 0,5 A gibt es keine Reserve zum Ladestrom, es
+- **Schalter RUNCCI-YUN (B09TVDZ8P2)**: Standard im Akku-Gehäuse (`sw_type = "RUNCCI"`). Laut Angebot 0,5 A bei 50 V DC
+  (bzw. 2 A bei 125 V AC), Hebel 5 mm. Der Körper misst 12,6 x 6,6 mm. Das Loch in der Wand ist 0,3 mm je Seite
+  größer (13,2 x 7,2 mm), der Schalter wird von innen eingeklebt. Bei 0,5 A gibt es keine Reserve zum Ladestrom, es
   gibt kein Datenblatt. Bei 4,2 V ist das in der Praxis meist unkritisch, der TS01CQE bleibt aber die bessere Wahl.
-  Das Gehäuse ist 2,5 mm länger als der TS01, deshalb entfallen die seitlichen Stege, nur die Wandtasche hält ihn.
-  Gehäusetiefe, Hebelquerschnitt und Schaltweg stehen nicht im Angebot. Vor dem Druck nachmessen und die Werte in
-  `sw_presets` eintragen. Der Hebel steht etwa 4 mm heraus und kann sich am Band oder in der Kleidung verhaken.
+  Das Gehäuse ist länger als der TS01, deshalb entfallen die seitlichen Stege. Gehäusetiefe, Hebelquerschnitt und
+  Schaltweg stehen nicht im Angebot. Der Hebel steht heraus und kann sich am Band oder in der Kleidung verhaken.
 - **Halter Hugcows (B0GWJ7VMMB)**: laut Angebot für geschützte Zellen, aber ohne Maßangaben. Halter nachmessen und
   `hold_l`, `hold_w`, `hold_h` setzen (Höhe = Boden bis Oberkante der Endwände). Das Gehäuse wächst in Länge und
   Höhe mit. In der Breite passen Halter bis etwa 25 mm. Billige Federkontakte können bei Erschütterung kurz
@@ -562,7 +562,7 @@ sie bei `"left"` auf dem Kopf, `lanyard_side = "right"` setzen. Bügel, Schalter
 | `bottom_clear` | 5,0: Raum zwischen Halter und Platine für Akkustecker und Litzen |
 | `lanyard`, `lanyard_side` | Bügel für das Schlüsselband (Standard an), Seite, die beim Tragen oben ist |
 | `lug_w`, `lug_depth`, `lug_bar`, `lug_open` | Bügel 6 mm breit, steht 8 mm ab, Steg 3,5 mm, Durchlass am Steg 6 mm hoch; `lug_x` verschiebt ihn entlang der Kante |
-| `power_switch`, `sw_type`, `sw_presets` | Schlitz, Tasche und Halterung für den Schalter in der Oberkante, `sw_type` = `"TS01CQE"` oder `"RUNCCI"`. In der Tasche ist die Wand nur `sw_wall` dick (TS01 1 mm, damit der kurze Hebel etwa 2 mm heraussteht). Seitliche Stege nur, wenn das hintere Fach lang genug ist. Der Schalter wird von innen eingeklebt |
+| `power_switch`, `sw_type`, `sw_presets` | Loch und Halterung für den Schalter in der Oberkante. Standard `sw_type = "RUNCCI"`, Körper 12,6 x 6,6 mm; alternativ `"TS01CQE"`. Das Loch ist der Schalterkörper plus 0,3 mm je Seite. Seitliche Stege nur, wenn das hintere Fach lang genug ist. Der Schalter wird von innen eingeklebt |
 | `lora_sma`, `gnss_sma` | LoRa-SMA in der Unterkante (Standard an), GNSS-SMA an der Stirnseite (Standard aus) |
 | `strap_loops`, `strap_w` | Alternative zum Bügel: flache Laschen mit Schlitz für 25-mm-Gurtband (Standard aus) |
 

@@ -78,13 +78,13 @@ hold_rib_t = 1.2;
 /* [Power switch] */
 // Slide switch in the top edge, in the battery plus lead. It carries the 500 mA charge current.
 power_switch = true;
-sw_type = "TS01CQE"; // [TS01CQE, RUNCCI]
+sw_type = "RUNCCI"; // [TS01CQE, RUNCCI]
 // TS01CQE: C&K datasheet, silver contacts, 3 A @ 28 V DC.
-// RUNCCI: Amazon B09TVDZ8P2, 0.5 A @ 50 V DC, body 12.7 x 6.6, 5 mm knob. Body depth, knob
-// cross-section and travel are not listed; the values here are assumptions, measure before printing.
-//            body l, body h, body d, pins, knob, knob height, travel, wall in pocket
-sw_presets = [["TS01CQE", 10.16, 5.08, 8.79, 3.3, 2.49, 3.1, 3.05, 1.0],
-              ["RUNCCI",  12.7,  6.6,  8.2,  6.8, 2.0,  5.0, 3.0,  1.2]];
+// RUNCCI: Amazon B09TVDZ8P2, 0.5 A @ 50 V DC, measured body 12.6 x 6.6 mm, 5 mm knob. Body depth, knob
+// cross-section and travel are not listed; those values are assumptions.
+//            body l, body h, body d, pins, knob, knob height, travel
+sw_presets = [["TS01CQE", 10.16, 5.08, 8.79, 3.3, 2.49, 3.1, 3.05],
+              ["RUNCCI",  12.6,  6.6,  8.2,  6.8, 2.0,  5.0, 3.0]];
 sw_p = sw_presets[search([sw_type], sw_presets)[0]];
 sw_l = sw_p[1];       // body along the wall (travel direction)
 sw_h = sw_p[2];       // body across the wall
@@ -93,8 +93,7 @@ sw_pins = sw_p[4];
 sw_lever = sw_p[5];   // knob cross-section
 sw_lever_l = sw_p[6]; // knob height above the body
 sw_travel = sw_p[7];
-sw_wall = sw_p[8];    // wall thinned to this in a pocket that locates the body; the knob stands out sw_lever_l - sw_wall
-sw_slot_clr = 0.3;    // per side
+sw_slot_clr = 0.3;    // per side, so the body fits the wall opening
 
 /* [Antennas] */
 cable_space = 14;     // free space behind the board for U.FL pigtails, SMA nut and switch
@@ -176,8 +175,8 @@ rear_mid = (rear_x0 + wall + in_l) / 2;
 sma_z = (wire_z + base_h) / 2;
 sw_x = rear_mid;
 sw_z = sma_z;
-sw_pocket = sw_l + 0.3;
-sw_pocket_h = sw_h + 0.3;
+sw_pocket = sw_l + 2 * sw_slot_clr;
+sw_pocket_h = sw_h + 2 * sw_slot_clr;
 // side posts only where the rear compartment is long enough, otherwise the wall pocket alone locates the body
 sw_post = sw_x - sw_pocket / 2 - 1.2 >= rear_x0 && sw_x + sw_pocket / 2 + 1.2 <= wall + in_l ? 1.2 : 0;
 
@@ -256,14 +255,9 @@ module base() {
       bottom_wall() translate([rear_mid, wall + eps, sma_z]) rotate([90, 0, 0]) cylinder(d = sma_hole, h = wall + 1);
     if (gnss_sma)
       translate([out_l - wall - eps, out_w / 2, sma_z]) rotate([0, 90, 0]) cylinder(d = sma_hole, h = wall + 1);
-    if (power_switch) {
-      slot_l = sw_lever + sw_travel + 2 * sw_slot_clr;
-      slot_h = sw_lever + 2 * sw_slot_clr;
-      top_wall() {
-        translate([sw_x - slot_l / 2, -eps, sw_z - slot_h / 2]) cube([slot_l, wall + 2 * eps, slot_h]);
-        translate([sw_x - sw_pocket / 2, sw_wall, sw_z - sw_pocket_h / 2]) cube([sw_pocket, wall - sw_wall + eps, sw_pocket_h]);
-      }
-    }
+    if (power_switch)
+      top_wall() translate([sw_x - sw_pocket / 2, -eps, sw_z - sw_pocket_h / 2])
+        cube([sw_pocket, wall + 2 * eps, sw_pocket_h]);
     for (p = screw_pos) translate([p[0], p[1], base_h - insert_depth]) cylinder(d = insert_hole, h = insert_depth + eps);
   }
 }
@@ -292,11 +286,11 @@ module holder_ribs() {
     translate([x, y, floor_t - eps]) cube([hold_rib_t, 4, hold_rib_h + eps]);
 }
 
-// Pocket in the wall, shelf and two side posts on the inside of the top wall; the switch is glued in.
+// Shelf and two side posts on the inside of the top wall; the switch is glued into the wall opening.
 module switch_mount() {
   top_wall() {
-    // short, so the 45 deg underside stays above the battery holder; the wall pocket locates the body
-    depth = min(sw_wall + sw_d - wall, 3.5);
+    // short, so the 45 deg underside stays above the battery holder
+    depth = min(sw_d - wall, 3.5);
     ledge(sw_x - sw_pocket / 2 - sw_post, sw_pocket + 2 * sw_post, depth, sw_z - sw_pocket_h / 2, 1.2);
     if (sw_post > 0)
       for (x = [sw_x - sw_pocket / 2 - sw_post, sw_x + sw_pocket / 2])
@@ -406,10 +400,10 @@ module battery_dummy() {
 
 module switch_dummy(explode = 0) {
   top_wall() translate([0, -explode, 0]) {
-    color("#222") translate([sw_x - sw_l / 2, sw_wall, sw_z - sw_h / 2]) cube([sw_l, sw_d, sw_h]);
-    color("silver") translate([sw_x - sw_lever / 2 - sw_travel / 2, sw_wall - sw_lever_l, sw_z - sw_lever / 2])
+    color("#222") translate([sw_x - sw_l / 2, 0, sw_z - sw_h / 2]) cube([sw_l, sw_d, sw_h]);
+    color("silver") translate([sw_x - sw_lever / 2 - sw_travel / 2, -sw_lever_l, sw_z - sw_lever / 2])
       cube([sw_lever, sw_lever_l, sw_lever]);
-    for (dx = [-2.54, 0, 2.54]) color("silver") translate([sw_x + dx - 0.25, sw_wall + sw_d, sw_z - 0.25]) cube([0.5, sw_pins, 0.5]);
+    for (dx = [-2.54, 0, 2.54]) color("silver") translate([sw_x + dx - 0.25, sw_d, sw_z - 0.25]) cube([0.5, sw_pins, 0.5]);
   }
 }
 
